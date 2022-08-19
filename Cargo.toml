@@ -1,0 +1,17 @@
+[package]
+name = "weekly-game-jam-267"
+version = "0.1.0"
+edition = "2021"
+
+[profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
+opt-level = 3
+
+[profile.release]
+lto = "thin"
+
+[dependencies]
+bevy = { version = "0.8", features = [ "dynamic" ] }
+bevy-inspector-egui = "0.12.1"
