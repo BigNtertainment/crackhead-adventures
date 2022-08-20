@@ -1,6 +1,10 @@
+use std::fs::File;
+use std::io::{prelude::*, BufReader};
+
 use bevy::prelude::*;
 
 use crate::TILE_SIZE;
+use crate::player::PlayerBundle;
 
 #[derive(Component)]
 pub struct TileCollider;
@@ -13,15 +17,112 @@ impl Plugin for TileMapPlugin {
 	}
 }
 
-fn load_level(mut commands: Commands) {
-	commands.spawn_bundle(SpriteBundle {
-		sprite: Sprite {
-			color: Color::rgb(0.75, 0.25, 0.25),
-			custom_size: Some(Vec2::splat(TILE_SIZE)),
+pub trait Tile {
+	fn at(position: Vec2) -> Self;
+}
+
+// Tiles
+#[derive(Bundle)]
+struct WallBundle {
+	#[bundle]
+	sprite_bundle: SpriteBundle,
+	collider: TileCollider
+}
+
+impl Default for WallBundle {
+	fn default() -> Self {
+		Self {
+			sprite_bundle: SpriteBundle {
+				sprite: Sprite {
+					color: Color::rgb(0.75, 0.25, 0.25),
+					custom_size: Some(Vec2::splat(TILE_SIZE)),
+					..Default::default()
+				},
+				..Default::default()
+			},
+			collider: TileCollider
+		}
+	}
+}
+
+impl Tile for WallBundle {
+	fn at(position: Vec2) -> Self {
+		Self {
+			sprite_bundle: SpriteBundle {
+				sprite: Sprite {
+					color: Color::rgb(0.75, 0.25, 0.25),
+					custom_size: Some(Vec2::splat(TILE_SIZE)),
+					..Default::default()
+				},
+				transform: Transform::from_xyz(position.x, position.y, 0.0),
+				..Default::default()
+			},
 			..Default::default()
+		}
+	}
+}
+
+fn load_level(mut commands: Commands) {
+	let file = File::open("assets/level.txt").expect("Level file (level.txt) not found!");
+
+	let mut tiles = Vec::new();
+
+	for (y, line) in BufReader::new(file).lines().enumerate() {
+		if let Ok(line) = line {
+			for (x, char) in line.chars().enumerate() {
+				let tile = spawn_tile(
+					&mut commands,
+					char,
+					Vec2::new(x as f32, -(y as f32))
+				);
+
+				match tile {
+					Ok(tile) => {
+						if let Some(tile) = tile {
+							tiles.push(tile);
+						}
+					},
+					Err(err) => {
+						match err {
+							TileSpawnError::UnknownChar(char) => {
+								panic!("Unknown char in the level file on position ({}, {}): {}", x, y, char);
+							}
+						}
+					}
+				};
+			}
+		}
+	}
+
+	commands
+		.spawn()
+		.insert(Name::new("Tilemap"))
+		.insert(Visibility::default())
+		.insert(ComputedVisibility::default())
+		.insert(Transform::default())
+		.insert(GlobalTransform::default())
+		.push_children(&tiles);
+}
+
+enum TileSpawnError {
+	UnknownChar(char)
+}
+
+fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec2) -> Result<Option<Entity>, TileSpawnError> {
+	let position = position_on_tilemap * TILE_SIZE;
+
+	return match tile_char {
+		'#' => {
+			Ok(Some(commands.spawn_bundle(WallBundle::at(position)).id()))
 		},
-		transform: Transform::from_xyz(100.0, -50.0, 0.0),
-		..Default::default()
-	})
-	.insert(TileCollider);
+		'O' => {
+			Ok(Some(commands.spawn_bundle(PlayerBundle::at(position)).id()))
+		},
+		' ' => {
+			Ok(None)
+		},
+		unknown => {
+			Err(TileSpawnError::UnknownChar(unknown))
+		}
+	};
 }
