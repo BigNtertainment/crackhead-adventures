@@ -37,7 +37,8 @@ impl Plugin for PlayerPlugin {
 			.add_system(player_movement.label("player_movement"))
 			.add_system(camera_follow.after("player_movement"))
 			.add_system(damage_yourself)
-			.add_system(update_ui);
+			.add_system(update_ui)
+			.add_system(player_aim);
 	}
 }
 
@@ -254,33 +255,13 @@ fn player_aim(
 ) {
 	let mut player_transform = player_query.single_mut();
 	let (camera, camera_transform) = camera_query.single();
-
-	// this is awful and it should not be mutable but i have no idea how to get that outside of the loops scope
 	
-
-	// this could be its own function
-	// changing screen pos of cursor to world pos
-	// still needs to check if the cursor is in the screen
 	if let Some(target) = window.iter().next().unwrap().cursor_position(){
 		let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
-
+		// gpu coords, from 0 to 1
 		let ndc = (target / window_size) * 2.0 - Vec2::ONE;
-
-		println!("{}", ndc);
-
-	// 	let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
-
-	// 	let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
-	// 	let world_pos: Vec2 = world_pos.truncate();
-
-	// 	println!("World coords: {}/{}", world_pos.x, world_pos.y);
-	// }
-		let pos = player_transform.translation.truncate();
-
-	
 		let angle = (Vec2::Y).angle_between(ndc);
-	// println!("{}", angle * 180.0 / PI);
-	player_transform.rotation = Quat::from_rotation_z(angle);
+		player_transform.rotation = Quat::from_rotation_z(angle);
 	}
 
 }
