@@ -35,8 +35,6 @@ impl Plugin for PlayerPlugin {
 		app
 			.register_type::<Movement>()
 
-			.insert_resource(ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)))
-
 			.add_startup_system(load_shot_sound)
 
 			.add_system_set(
@@ -68,7 +66,8 @@ pub struct PlayerBundle {
 	name: Name,
 	player: Player,
 	movement: Movement,
-	health: Health
+	health: Health,
+	shoot_cooldown: ShootCooldown
 }
 
 impl Default for PlayerBundle {
@@ -85,7 +84,8 @@ impl Default for PlayerBundle {
 			name: Name::new("Player"),
 			player: Player,
 			movement: Movement { speed: 10.0 },
-			health: Health::new(100.0)
+			health: Health::new(100.0),
+			shoot_cooldown: ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false))
 		}
 	}
 }
@@ -296,13 +296,14 @@ fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 struct ShotSound(Handle<AudioSource>);
-struct ShootCooldown(Timer);
+
+#[derive(Component)]
+pub struct ShootCooldown(Timer);
 
 fn player_shoot(
 	mut commands: Commands,
-	player_query: Query<&Transform, With<Player>>,
+	mut player_query: Query<(&Transform, &mut ShootCooldown), With<Player>>,
 	enemies_query: Query<Entity, With<Enemy>>,
-	mut cooldown: ResMut<ShootCooldown>,
 	rapier_context: Res<RapierContext>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
@@ -310,13 +311,14 @@ fn player_shoot(
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>
 ) {
+	let (player_transform, mut cooldown) = player_query.single_mut();
+
 	cooldown.0.tick(time.delta());
 
 	if !cooldown.0.finished() {
 		return;
 	}
 
-	let player_transform = player_query.single();
 	let window_size = Vec2::new(WIDTH, HEIGHT);
 	
 	if let Some(target) = window.iter().next().unwrap().cursor_position() {
