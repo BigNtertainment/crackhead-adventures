@@ -3,12 +3,15 @@ use bevy::sprite::collide_aabb::{collide, Collision};
 
 use rand::prelude::*;
 
-use crate::TILE_SIZE;
+use crate::{TILE_SIZE, GameState};
 use crate::tilemap::{TileCollider, Tile};
 use crate::unit::{Movement, Health};
 
 #[derive(Component)]
 pub struct Player;
+
+#[derive(Component)]
+pub struct PlayerUi;
 
 #[derive(Component)]
 pub struct HealthBar;
@@ -19,15 +22,26 @@ impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app
 			.register_type::<Movement>()
-			.add_startup_system(ui_setup)
-			.add_system(player_movement.label("player_movement"))
-			.add_system(camera_follow.after("player_movement"))
-			.add_system(damage_yourself)
-			.add_system(update_ui);
+
+			.add_system_set(
+				SystemSet::on_enter(GameState::Game)
+					.with_system(ui_setup)
+			)
+
+			.add_system_set(
+				SystemSet::on_exit(GameState::Game)
+					.with_system(drop_ui)
+			)
+
+			.add_system_set(
+				SystemSet::on_update(GameState::Game)
+					.with_system(player_movement.label("player_movement"))
+					.with_system(camera_follow.after("player_movement"))
+					.with_system(damage_yourself)
+					.with_system(update_ui)
+			);
 	}
 }
-
-pub const PLAYER_MAX_HEALTH: f32 = 100.0;
 
 #[derive(Bundle)]
 pub struct PlayerBundle {
@@ -53,7 +67,7 @@ impl Default for PlayerBundle {
 			name: Name::new("Player"),
 			player: Player,
 			movement: Movement { speed: 10.0 },
-			health: Health { health: PLAYER_MAX_HEALTH }
+			health: Health::new(100.0)
 		}
 	}
 }
@@ -88,6 +102,7 @@ fn ui_setup(mut commands: Commands) {
 			..Default::default()
 		})
 		.insert(Name::new("UI"))
+		.insert(PlayerUi)
 		.with_children(|parent| {
 			parent
 				.spawn_bundle(NodeBundle {
@@ -128,6 +143,11 @@ fn ui_setup(mut commands: Commands) {
 						});
 				});
 		});
+}
+
+fn drop_ui(mut commands: Commands, ui_query: Query<Entity, With<PlayerUi>>) {
+	let ui = ui_query.single();
+	commands.entity(ui).despawn_recursive();
 }
 
 fn player_movement(
@@ -217,16 +237,19 @@ fn update_ui(
 	let player_health = player_query.single();
 	let mut health_bar_style = health_bar_query.single_mut();
 
-	health_bar_style.size.width = Val::Percent(player_health.health / PLAYER_MAX_HEALTH * 100.0);
+	health_bar_style.size.width = Val::Percent(player_health.get_health() / player_health.get_max_health() * 100.0);
 }
 
 fn damage_yourself(
 	mut player_query: Query<&mut Health, With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
+	mut state: ResMut<State<GameState>>
 ) {
 	let mut player_health = player_query.single_mut();
 
 	if keyboard.just_pressed(KeyCode::Space) {
-		player_health.health -= rand::thread_rng().gen::<f32>() * 10.0 + 10.0;
+		if player_health.take_damage(rand::thread_rng().gen::<f32>() * 10.0 + 10.0) {
+			state.set(GameState::GameOver).expect("Failed to change states");
+		}
 	}
 }

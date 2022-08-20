@@ -1,3 +1,5 @@
+#![deny(unused_must_use)]
+
 use bevy::prelude::*;
 
 pub const WIDTH: f32 = 1280.0;
@@ -9,14 +11,17 @@ mod player;
 mod enemy;
 mod debug;
 mod tilemap;
+mod game_over;
 
 use player::PlayerPlugin;
 use debug::DebugPlugin;
 use tilemap::TileMapPlugin;
+use game_over::GameOverPlugin;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum GameState {
-    Game
+    Game,
+    GameOver
 }
 
 fn camera_setup(mut commands: Commands) {
@@ -42,6 +47,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(TileMapPlugin)
         .add_plugin(PlayerPlugin)
+        .add_plugin(GameOverPlugin)
         .add_plugin(DebugPlugin)
 
         // Systems

@@ -3,9 +3,12 @@ use std::io::{prelude::*, BufReader};
 
 use bevy::prelude::*;
 
-use crate::TILE_SIZE;
+use crate::{TILE_SIZE, GameState};
 use crate::enemy::EnemyBundle;
 use crate::player::PlayerBundle;
+
+#[derive(Component)]
+pub struct Tilemap;
 
 #[derive(Component)]
 pub struct TileCollider;
@@ -14,7 +17,9 @@ pub struct TileMapPlugin;
 
 impl Plugin for TileMapPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_startup_system(load_level);
+		app
+			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(load_level))
+			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_level));
 	}
 }
 
@@ -102,7 +107,13 @@ fn load_level(mut commands: Commands) {
 		.insert(ComputedVisibility::default())
 		.insert(Transform::default())
 		.insert(GlobalTransform::default())
+		.insert(Tilemap)
 		.push_children(&tiles);
+}
+
+fn drop_level(mut commands: Commands, tilemap: Query<Entity, With<Tilemap>>) {
+	let tilemap = tilemap.single();
+	commands.entity(tilemap).despawn_recursive();
 }
 
 enum TileSpawnError {
