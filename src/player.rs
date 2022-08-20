@@ -3,7 +3,6 @@ use bevy::sprite::collide_aabb::{collide, Collision};
 
 use bevy_rapier2d::prelude::*;
 use rand::prelude::*;
-use bevy_prototype_debug_lines::*;
 
 use crate::enemy::Enemy;
 use crate::{TILE_SIZE, GameState};
@@ -11,6 +10,8 @@ use crate::HEIGHT;
 use crate::WIDTH;
 use crate::tilemap::{TileCollider, Tile};
 use crate::unit::{Movement, Health};
+
+pub const WEAPON_RANGE: f32 = 200.0;
 
 #[derive(Component)]
 pub struct Player;
@@ -42,10 +43,10 @@ impl Plugin for PlayerPlugin {
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
 					.with_system(camera_follow.after("player_movement"))
+					.with_system(player_aim.label("player_aim").after("player_movement"))
+					.with_system(player_shoot.after("player_aim"))
 					.with_system(damage_yourself)
 					.with_system(update_ui)
-					.with_system(player_aim)
-					.with_system(player_shoot)
 			);
 	}
 }
@@ -270,49 +271,40 @@ fn player_aim(
 	
 	if let Some(target) = window.iter().next().unwrap().cursor_position(){
 		let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
-		// gpu coords, from 0 to 1
-		let ndc = (target / window_size) * 2.0 - Vec2::ONE;
-		let angle = (Vec2::Y).angle_between(ndc);
+
+		let target = target - window_size / 2.0;
+
+		let angle = (Vec2::Y).angle_between(target);
 		player_transform.rotation = Quat::from_rotation_z(angle);
 	}
 
 }
 
 fn player_shoot(
-	rapier_context: Res<RapierContext>,
-	player_query: Query<&Transform, With<Player>>,
-	window: Res<Windows>,
-	buttons: Res<Input<MouseButton>>,
 	mut commands: Commands,
-	mut lines: ResMut<DebugLines>,
+	player_query: Query<&Transform, With<Player>>,
 	enemies_query: Query<Entity, With<Enemy>>,
+	rapier_context: Res<RapierContext>,
+	buttons: Res<Input<MouseButton>>,
+	window: Res<Windows>,
 ) {
 	let player_transform = player_query.single();
 	let window_size = Vec2::new(WIDTH, HEIGHT);
 	
-	if let Some(target) = window.iter().next().unwrap().cursor_position(){
-		// FIXME: something is really wrong here, it doesnt line-up at all with the mouse
+	if let Some(target) = window.iter().next().unwrap().cursor_position() {
 		let target = target * window.iter().next().unwrap().scale_factor() as f32;
-		let ndc = (target / window_size) * 2.0 - Vec2::ONE;
-		
-		let ray_pos = player_transform.translation.truncate();
-		let ray_dir = ndc.normalize();
-		// println!("{}", ray_dir);
-		let max_toi = Real::MAX; //UNLIMITED POWER!!
+		let target = target - window_size / 2.0;
+
+		let ray_origin = player_transform.translation.truncate();
+		let ray_direction = target.normalize();
+		let max_time_of_impact = WEAPON_RANGE;
 		let solid = true;
 		let filter = QueryFilter::default();
 
-		lines.line(ray_pos.extend(0.0), (ray_dir * Real::MAX).extend(0.0), 0.0);
-
 		if buttons.just_pressed(MouseButton::Left) {	
 			if let Some((entity, _toi))  = rapier_context.cast_ray(
-				ray_pos, ray_dir, max_toi, solid, filter
+				ray_origin, ray_direction, max_time_of_impact, solid, filter
 			) {
-				// The first collider hit has the entity `entity` and it hit after
-				// the ray travelled a distance equal to `ray_dir * toi`.
-				// let hit_point = ray_pos + ray_dir * _toi;
-				println!("{:?}", entity);
-
 				for enemy in enemies_query.iter() {
 					if entity.id() == enemy.id() {
 						commands.entity(entity).despawn_recursive();
