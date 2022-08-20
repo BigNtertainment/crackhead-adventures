@@ -6,9 +6,11 @@ pub const TILE_SIZE: f32 = 50.0;
 
 mod player;
 mod debug;
+mod tilemap;
 
 use player::PlayerPlugin;
 use debug::DebugPlugin;
+use tilemap::TileMapPlugin;
 
 fn camera_setup(mut commands: Commands) {
     commands
@@ -30,6 +32,7 @@ fn main() {
 
         // Plugins
         .add_plugins(DefaultPlugins)
+        .add_plugin(TileMapPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(DebugPlugin)
 
