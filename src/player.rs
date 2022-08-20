@@ -4,6 +4,8 @@ use bevy::sprite::collide_aabb::{collide, Collision};
 use rand::prelude::*;
 
 use crate::{TILE_SIZE, GameState};
+use crate::HEIGHT;
+use crate::WIDTH;
 use crate::tilemap::{TileCollider, Tile};
 use crate::unit::{Movement, Health};
 
@@ -39,6 +41,7 @@ impl Plugin for PlayerPlugin {
 					.with_system(camera_follow.after("player_movement"))
 					.with_system(damage_yourself)
 					.with_system(update_ui)
+					.with_system(player_aim)
 			);
 	}
 }
@@ -252,4 +255,24 @@ fn damage_yourself(
 			state.set(GameState::GameOver).expect("Failed to change states");
 		}
 	}
+
+}
+
+fn player_aim(
+	mut player_query: Query<&mut Transform, (With<Player>, Without<Camera2d>)>,
+	camera_query: Query<(&Camera, &GlobalTransform), (With<Camera2d>, Without<Player>)>,
+    // mut cursor_event_reader: EventReader<CursorMoved>,
+	window: Res<Windows>
+) {
+	let mut player_transform = player_query.single_mut();
+	let (camera, camera_transform) = camera_query.single();
+	
+	if let Some(target) = window.iter().next().unwrap().cursor_position(){
+		let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
+		// gpu coords, from 0 to 1
+		let ndc = (target / window_size) * 2.0 - Vec2::ONE;
+		let angle = (Vec2::Y).angle_between(ndc);
+		player_transform.rotation = Quat::from_rotation_z(angle);
+	}
+
 }
