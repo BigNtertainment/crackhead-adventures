@@ -4,6 +4,7 @@ use std::io::{prelude::*, BufReader};
 use bevy::prelude::*;
 
 use crate::TILE_SIZE;
+use crate::enemy::EnemyBundle;
 use crate::player::PlayerBundle;
 
 #[derive(Component)]
@@ -50,7 +51,7 @@ impl Tile for WallBundle {
 		Self {
 			sprite_bundle: SpriteBundle {
 				sprite: Sprite {
-					color: Color::rgb(0.75, 0.25, 0.25),
+					color: Color::rgb(66.0 / 255.0, 135.0 / 255.0, 245.0 / 255.0),
 					custom_size: Some(Vec2::splat(TILE_SIZE)),
 					..Default::default()
 				},
@@ -117,6 +118,9 @@ fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec
 		},
 		'O' => {
 			Ok(Some(commands.spawn_bundle(PlayerBundle::at(position)).id()))
+		},
+		'E' => {
+			Ok(Some(commands.spawn_bundle(EnemyBundle::at(position)).id()))
 		},
 		' ' => {
 			Ok(None)

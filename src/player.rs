@@ -1,29 +1,17 @@
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
-use bevy_inspector_egui::Inspectable;
 
 use rand::prelude::*;
 
 use crate::TILE_SIZE;
 use crate::tilemap::{TileCollider, Tile};
+use crate::unit::{Movement, Health};
 
 #[derive(Component)]
 pub struct Player;
 
 #[derive(Component)]
 pub struct HealthBar;
-
-#[derive(Default, Reflect, Inspectable, Component)]
-#[reflect(Component)]
-pub struct Movement {
-	speed: f32,
-}
-
-#[derive(Default, Reflect, Inspectable, Component)]
-#[reflect(Component)]
-pub struct Health {
-	health: f32,
-}
 
 pub struct PlayerPlugin;
 

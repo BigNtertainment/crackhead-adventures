@@ -4,7 +4,9 @@ pub const WIDTH: f32 = 1280.0;
 pub const HEIGHT: f32 = 720.0;
 pub const TILE_SIZE: f32 = 50.0;
 
+mod unit;
 mod player;
+mod enemy;
 mod debug;
 mod tilemap;
 
