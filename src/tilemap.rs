@@ -3,6 +3,7 @@ use std::io::{prelude::*, BufReader};
 use rand::seq::SliceRandom;
 
 use bevy::prelude::*;
+use bevy_rapier2d::prelude::*;
 
 use crate::{TILE_SIZE, GameState};
 use crate::enemy::EnemyBundle;
@@ -41,6 +42,7 @@ struct WallBundle {
 	#[bundle]
 	sprite_bundle: SpriteBundle,
 	collider: TileCollider,
+	rapier_collider: Collider,
 	wall: Wall
 }
 
@@ -48,15 +50,11 @@ impl Default for WallBundle {
 	fn default() -> Self {
 		Self {
 			sprite_bundle: SpriteBundle {
-				// sprite: Sprite {
-				// 	color: Color::rgb(0.75, 0.25, 0.25),
-				// 	custom_size: Some(Vec2::splat(TILE_SIZE)),
-				// 	..Default::default()
-				// },
 				..Default::default()
 			},
 			collider: TileCollider,
-			wall: Wall
+			wall: Wall,
+			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0),
 		}
 	}
 }
@@ -65,11 +63,6 @@ impl Tile for WallBundle {
 	fn at(position: Vec2) -> Self {
 		Self {
 			sprite_bundle: SpriteBundle {
-				// sprite: Sprite {
-				// 	color: Color::rgb(66.0 / 255.0, 135.0 / 255.0, 245.0 / 255.0),
-				// 	custom_size: Some(Vec2::splat(TILE_SIZE)),
-				// 	..Default::default()
-				// },
 				transform: Transform::from_xyz(position.x, position.y, 0.0),
 				..Default::default()
 			},
