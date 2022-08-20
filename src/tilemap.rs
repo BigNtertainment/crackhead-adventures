@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{prelude::*, BufReader};
 
 use bevy::prelude::*;
+use bevy_rapier2d::prelude::*;
 
 use crate::TILE_SIZE;
 use crate::player::PlayerBundle;
@@ -26,7 +27,9 @@ pub trait Tile {
 struct WallBundle {
 	#[bundle]
 	sprite_bundle: SpriteBundle,
-	collider: TileCollider
+	collider: TileCollider,
+	rapier_collider: Collider,
+	rapier_body: RigidBody
 }
 
 impl Default for WallBundle {
@@ -40,7 +43,9 @@ impl Default for WallBundle {
 				},
 				..Default::default()
 			},
-			collider: TileCollider
+			collider: TileCollider,
+			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0),
+			rapier_body: RigidBody::Fixed,
 		}
 	}
 }

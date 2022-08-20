@@ -2,6 +2,7 @@ use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 use bevy_inspector_egui::Inspectable;
 
+use bevy_rapier2d::prelude::*;
 use rand::prelude::*;
 
 use crate::TILE_SIZE;
@@ -38,7 +39,8 @@ impl Plugin for PlayerPlugin {
 			.add_system(camera_follow.after("player_movement"))
 			.add_system(damage_yourself)
 			.add_system(update_ui)
-			.add_system(player_aim);
+			.add_system(player_aim)
+			.add_system(player_shoot);
 	}
 }
 
@@ -248,13 +250,10 @@ fn damage_yourself(
 }
 
 fn player_aim(
-	mut player_query: Query<&mut Transform, (With<Player>, Without<Camera2d>)>,
-	camera_query: Query<(&Camera, &GlobalTransform), (With<Camera2d>, Without<Player>)>,
-    // mut cursor_event_reader: EventReader<CursorMoved>,
+	mut player_query: Query<&mut Transform, With<Player>>,
 	window: Res<Windows>
 ) {
 	let mut player_transform = player_query.single_mut();
-	let (camera, camera_transform) = camera_query.single();
 	
 	if let Some(target) = window.iter().next().unwrap().cursor_position(){
 		let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
@@ -264,4 +263,34 @@ fn player_aim(
 		player_transform.rotation = Quat::from_rotation_z(angle);
 	}
 
+}
+
+fn player_shoot(
+	rapier_context: Res<RapierContext>,
+	player_query: Query<&Transform, With<Player>>,
+	window: Res<Windows>
+) {
+	let player_transform = player_query.single();
+	let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
+
+	if let Some(target) = window.iter().next().unwrap().cursor_position(){
+		let ndc = (target / window_size) * 2.0 - Vec2::ONE;
+
+		let ray_pos = player_transform.translation.truncate();
+		let ray_dir = ndc.normalize();
+		let max_toi = Real::MAX; //UNLIMITED POWER!!
+		let solid = true;
+		let filter = QueryFilter::exclude_fixed(); // walls are fixed and we dont want to get event when we hit em
+		// let filter = QueryFilter::default(); // debug
+
+		if let Some((entity, toi)) = rapier_context.cast_ray(
+			ray_pos, ray_dir, max_toi, solid, filter
+		) {
+			// The first collider hit has the entity `entity` and it hit after
+			// the ray travelled a distance equal to `ray_dir * toi`.
+			let hit_point = ray_pos + ray_dir * toi;
+			println!("Entity {:?} hit at point {}", entity, hit_point);
+		}
+
+	}
 }
