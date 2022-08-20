@@ -2,16 +2,27 @@ use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 use bevy_inspector_egui::Inspectable;
 
+use rand::prelude::*;
+
 use crate::TILE_SIZE;
 use crate::tilemap::{TileCollider, Tile};
 
 #[derive(Component)]
 pub struct Player;
 
+#[derive(Component)]
+pub struct HealthBar;
+
 #[derive(Default, Reflect, Inspectable, Component)]
 #[reflect(Component)]
 pub struct Movement {
 	speed: f32,
+}
+
+#[derive(Default, Reflect, Inspectable, Component)]
+#[reflect(Component)]
+pub struct Health {
+	health: f32,
 }
 
 pub struct PlayerPlugin;
@@ -20,10 +31,15 @@ impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app
 			.register_type::<Movement>()
+			.add_startup_system(ui_setup)
 			.add_system(player_movement.label("player_movement"))
-			.add_system(camera_follow.after("player_movement"));
+			.add_system(camera_follow.after("player_movement"))
+			.add_system(damage_yourself)
+			.add_system(update_ui);
 	}
 }
+
+pub const PLAYER_MAX_HEALTH: f32 = 100.0;
 
 #[derive(Bundle)]
 pub struct PlayerBundle {
@@ -32,6 +48,7 @@ pub struct PlayerBundle {
 	name: Name,
 	player: Player,
 	movement: Movement,
+	health: Health
 }
 
 impl Default for PlayerBundle {
@@ -47,7 +64,8 @@ impl Default for PlayerBundle {
 			},
 			name: Name::new("Player"),
 			player: Player,
-			movement: Movement { speed: 10.0 }
+			movement: Movement { speed: 10.0 },
+			health: Health { health: PLAYER_MAX_HEALTH }
 		}
 	}
 }
@@ -67,6 +85,61 @@ impl Tile for PlayerBundle {
 			..Default::default()
 		}
 	}
+}
+
+fn ui_setup(mut commands: Commands) {
+	commands
+		.spawn_bundle(NodeBundle {
+			style: Style  {
+				size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+				padding: UiRect::all(Val::Px(20.0)),
+                justify_content: JustifyContent::SpaceBetween,
+                ..Default::default()
+			},
+            color: Color::NONE.into(),
+			..Default::default()
+		})
+		.insert(Name::new("UI"))
+		.with_children(|parent| {
+			parent
+				.spawn_bundle(NodeBundle {
+					style: Style {
+						size: Size::new(Val::Px(240.0), Val::Percent(100.0)),
+						flex_direction: FlexDirection::Column,
+						justify_content: JustifyContent::FlexEnd,
+						..Default::default()
+					},
+					color: Color::NONE.into(),
+					..Default::default()
+				})
+				.insert(Name::new("Bars"))
+				.with_children(|parent| {
+					parent
+						.spawn_bundle(NodeBundle {
+							style: Style {
+								size: Size::new(Val::Percent(100.0), Val::Px(30.0)),
+								padding: UiRect::all(Val::Px(7.0)),
+								..Default::default()
+							},
+							color: Color::rgb(0.0, 0.0, 0.0).into(),
+							..Default::default()
+						})
+						.insert(Name::new("HealthBarContainer"))
+						.with_children(|parent| {
+							parent
+								.spawn_bundle(NodeBundle {
+									style: Style {
+										size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+										..Default::default()
+									},
+									color: Color::rgb(0.95, 0.04, 0.07).into(),
+									..Default::default()
+								})
+								.insert(Name::new("HealthBar"))
+								.insert(HealthBar);
+						});
+				});
+		});
 }
 
 fn player_movement(
@@ -147,4 +220,25 @@ fn camera_follow(
 
 	camera_transform.translation.x = player_transform.translation.x;
 	camera_transform.translation.y = player_transform.translation.y;
+}
+
+fn update_ui(
+	player_query: Query<&Health, With<Player>>,
+	mut health_bar_query: Query<&mut Style, With<HealthBar>>
+) {
+	let player_health = player_query.single();
+	let mut health_bar_style = health_bar_query.single_mut();
+
+	health_bar_style.size.width = Val::Percent(player_health.health / PLAYER_MAX_HEALTH * 100.0);
+}
+
+fn damage_yourself(
+	mut player_query: Query<&mut Health, With<Player>>,
+	keyboard: Res<Input<KeyCode>>,
+) {
+	let mut player_health = player_query.single_mut();
+
+	if keyboard.just_pressed(KeyCode::Space) {
+		player_health.health -= rand::thread_rng().gen::<f32>() * 10.0 + 10.0;
+	}
 }
