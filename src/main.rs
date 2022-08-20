@@ -2,6 +2,7 @@
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
+use bevy_prototype_debug_lines::*;
 
 pub const WIDTH: f32 = 1280.0;
 pub const HEIGHT: f32 = 720.0;
@@ -51,6 +52,7 @@ fn main() {
         .add_plugin(PlayerPlugin)
         .add_plugin(GameOverPlugin)
         .add_plugin(DebugPlugin)
+        .add_plugin(DebugLinesPlugin::default())
 
         // Systems
         .add_startup_system(camera_setup)

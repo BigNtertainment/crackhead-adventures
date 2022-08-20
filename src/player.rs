@@ -3,6 +3,7 @@ use bevy::sprite::collide_aabb::{collide, Collision};
 
 use bevy_rapier2d::prelude::*;
 use rand::prelude::*;
+use bevy_prototype_debug_lines::*;
 
 use crate::{TILE_SIZE, GameState};
 use crate::HEIGHT;
@@ -279,28 +280,38 @@ fn player_aim(
 fn player_shoot(
 	rapier_context: Res<RapierContext>,
 	player_query: Query<&Transform, With<Player>>,
-	window: Res<Windows>
+	window: Res<Windows>,
+	buttons: Res<Input<MouseButton>>,
+	mut commands: Commands,
+	mut lines: ResMut<DebugLines>,
 ) {
 	let player_transform = player_query.single();
-	let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
+	let window_size = Vec2::new(WIDTH, HEIGHT);
 
 	if let Some(target) = window.iter().next().unwrap().cursor_position(){
+		// FIXME: something is really wrong here, it doesnt line-up at all with the mouse
+		let target = target * window.iter().next().unwrap().scale_factor() as f32;
 		let ndc = (target / window_size) * 2.0 - Vec2::ONE;
-
+		
 		let ray_pos = player_transform.translation.truncate();
 		let ray_dir = ndc.normalize();
+		println!("{}", ray_dir);
 		let max_toi = Real::MAX; //UNLIMITED POWER!!
 		let solid = true;
-		let filter = QueryFilter::exclude_fixed(); // walls are fixed and we dont want to get event when we hit em
-		// let filter = QueryFilter::default(); // debug
+		let filter = QueryFilter::default();
 
-		if let Some((entity, toi)) = rapier_context.cast_ray(
-			ray_pos, ray_dir, max_toi, solid, filter
-		) {
-			// The first collider hit has the entity `entity` and it hit after
-			// the ray travelled a distance equal to `ray_dir * toi`.
-			let hit_point = ray_pos + ray_dir * toi;
-			println!("Entity {:?} hit at point {}", entity, hit_point);
+		lines.line(ray_pos.extend(0.0), (ray_dir * Real::MAX).extend(0.0), 0.0);
+
+		if buttons.just_pressed(MouseButton::Left) {	
+			if let Some((entity, _toi))  = rapier_context.cast_ray(
+				ray_pos, ray_dir, max_toi, solid, filter
+			) {
+				// The first collider hit has the entity `entity` and it hit after
+				// the ray travelled a distance equal to `ray_dir * toi`.
+				// let hit_point = ray_pos + ray_dir * _toi;
+				println!("{:?}", entity);
+				commands.entity(entity).despawn_recursive();
+			}
 		}
 
 	}

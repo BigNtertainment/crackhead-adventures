@@ -35,7 +35,6 @@ struct WallBundle {
 	sprite_bundle: SpriteBundle,
 	collider: TileCollider,
 	rapier_collider: Collider,
-	rapier_body: RigidBody
 }
 
 impl Default for WallBundle {
@@ -51,7 +50,6 @@ impl Default for WallBundle {
 			},
 			collider: TileCollider,
 			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0),
-			rapier_body: RigidBody::Fixed,
 		}
 	}
 }
