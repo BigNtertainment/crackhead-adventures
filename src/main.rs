@@ -1,3 +1,5 @@
+#![deny(unused_must_use)]
+
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
@@ -5,17 +7,22 @@ pub const WIDTH: f32 = 1280.0;
 pub const HEIGHT: f32 = 720.0;
 pub const TILE_SIZE: f32 = 50.0;
 
+mod unit;
 mod player;
+mod enemy;
 mod debug;
 mod tilemap;
+mod game_over;
 
 use player::PlayerPlugin;
 use debug::DebugPlugin;
 use tilemap::TileMapPlugin;
+use game_over::GameOverPlugin;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum GameState {
-    Game
+    Game,
+    GameOver
 }
 
 fn camera_setup(mut commands: Commands) {
@@ -42,6 +49,7 @@ fn main() {
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(TileMapPlugin)
         .add_plugin(PlayerPlugin)
+        .add_plugin(GameOverPlugin)
         .add_plugin(DebugPlugin)
 
         // Systems

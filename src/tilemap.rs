@@ -4,8 +4,12 @@ use std::io::{prelude::*, BufReader};
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 
-use crate::TILE_SIZE;
+use crate::{TILE_SIZE, GameState};
+use crate::enemy::EnemyBundle;
 use crate::player::PlayerBundle;
+
+#[derive(Component)]
+pub struct Tilemap;
 
 #[derive(Component)]
 pub struct TileCollider;
@@ -14,7 +18,9 @@ pub struct TileMapPlugin;
 
 impl Plugin for TileMapPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_startup_system(load_level);
+		app
+			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(load_level))
+			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_level));
 	}
 }
 
@@ -55,7 +61,7 @@ impl Tile for WallBundle {
 		Self {
 			sprite_bundle: SpriteBundle {
 				sprite: Sprite {
-					color: Color::rgb(0.75, 0.25, 0.25),
+					color: Color::rgb(66.0 / 255.0, 135.0 / 255.0, 245.0 / 255.0),
 					custom_size: Some(Vec2::splat(TILE_SIZE)),
 					..Default::default()
 				},
@@ -106,7 +112,13 @@ fn load_level(mut commands: Commands) {
 		.insert(ComputedVisibility::default())
 		.insert(Transform::default())
 		.insert(GlobalTransform::default())
+		.insert(Tilemap)
 		.push_children(&tiles);
+}
+
+fn drop_level(mut commands: Commands, tilemap: Query<Entity, With<Tilemap>>) {
+	let tilemap = tilemap.single();
+	commands.entity(tilemap).despawn_recursive();
 }
 
 enum TileSpawnError {
@@ -122,6 +134,9 @@ fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec
 		},
 		'O' => {
 			Ok(Some(commands.spawn_bundle(PlayerBundle::at(position)).id()))
+		},
+		'E' => {
+			Ok(Some(commands.spawn_bundle(EnemyBundle::at(position)).id()))
 		},
 		' ' => {
 			Ok(None)
