@@ -4,6 +4,9 @@ use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
 use bevy_rapier2d::prelude::*;
+
+use bevy_kira_audio::prelude::*;
+
 use rand::prelude::*;
 
 use crate::enemy::Enemy;
@@ -33,6 +36,8 @@ impl Plugin for PlayerPlugin {
 			.register_type::<Movement>()
 
 			.insert_resource(ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)))
+
+			.add_startup_system(load_shot_sound)
 
 			.add_system_set(
 				SystemSet::on_enter(GameState::Game)
@@ -284,6 +289,13 @@ fn player_aim(
 	}
 }
 
+fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
+	let sound = asset_server.load("shot.wav");
+
+	commands.insert_resource(ShotSound(sound));
+}
+
+struct ShotSound(Handle<AudioSource>);
 struct ShootCooldown(Timer);
 
 fn player_shoot(
@@ -295,6 +307,8 @@ fn player_shoot(
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
 	window: Res<Windows>,
+	audio: Res<Audio>,
+	shot_sound: Res<ShotSound>
 ) {
 	cooldown.0.tick(time.delta());
 
@@ -326,6 +340,10 @@ fn player_shoot(
 				}
 				
 			}
+
+			audio
+				.play(shot_sound.0.clone())
+				.with_volume(0.15);
 
 			// Reset the cooldown timer
 			cooldown.0.reset();

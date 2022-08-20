@@ -12,9 +12,39 @@ opt-level = 3
 [profile.release]
 lto = "thin"
 
+[features]
+dev = [
+    "bevy/dynamic",
+]
+
+[dependencies.bevy]
+version = "0.8"
+default-features = false
+# These are the remaining default features other than `bevy_audio` and `vorbis`
+features = [
+  "render",
+  "animation",
+  "bevy_asset",
+  "bevy_scene",
+  "bevy_winit",
+  "bevy_gilrs",
+  "png",
+  "hdr",
+  "filesystem_watcher",
+  "x11"
+]
+
+[dependencies.bevy_kira_audio]
+version = "0.12"
+features = [
+  "wav",
+  "flac",
+  "mp3",
+  "ogg",
+]
+
 [dependencies]
-bevy = { version = "0.8", features = [ "dynamic" ] }
 bevy-inspector-egui = "0.12.1"
-rand = "0.8.5"
 bevy_rapier2d = "0.16.1"
 bevy_prototype_debug_lines = "0.8"
+rand = "0.8.5"
