@@ -1,7 +1,16 @@
-use bevy::prelude::*;
+use std::f32::consts::PI;
+
+use bevy::{
+    input::mouse::{MouseMotion},
+    prelude::*,
+    window::CursorMoved,
+};
 use bevy_inspector_egui::Inspectable;
 
+
 use crate::TILE_SIZE;
+use crate::HEIGHT;
+use crate::WIDTH;
 
 #[derive(Component)]
 pub struct Player;
@@ -19,7 +28,8 @@ impl Plugin for PlayerPlugin {
 		app
 			.register_type::<Movement>()
 			.add_startup_system(spawn_player)
-			.add_system(player_movement);
+			.add_system(player_movement)
+			.add_system(player_aim);
 	}
 }
 
@@ -65,4 +75,43 @@ fn player_movement(
 	if direction.length() != 0.0 {
 		transform.translation += direction.normalize() * movement.speed * TILE_SIZE * time.delta_seconds();
 	}
+}
+
+fn player_aim(
+	mut player_query: Query<&mut Transform, (With<Player>, Without<Camera2d>)>,
+	camera_query: Query<(&Camera, &GlobalTransform), (With<Camera2d>, Without<Player>)>,
+    // mut cursor_event_reader: EventReader<CursorMoved>,
+	window: Res<Windows>
+) {
+	let mut player_transform = player_query.single_mut();
+	let (camera, camera_transform) = camera_query.single();
+
+	// this is awful and it should not be mutable but i have no idea how to get that outside of the loops scope
+	
+
+	// this could be its own function
+	// changing screen pos of cursor to world pos
+	// still needs to check if the cursor is in the screen
+	if let Some(target) = window.iter().next().unwrap().cursor_position(){
+		let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
+
+		let ndc = (target / window_size) * 2.0 - Vec2::ONE;
+
+		println!("{}", ndc);
+
+	// 	let ndc_to_world = camera_transform.compute_matrix() * camera.projection_matrix().inverse();
+
+	// 	let world_pos = ndc_to_world.project_point3(ndc.extend(-1.0));
+	// 	let world_pos: Vec2 = world_pos.truncate();
+
+	// 	println!("World coords: {}/{}", world_pos.x, world_pos.y);
+	// }
+		let pos = player_transform.translation.truncate();
+
+	
+		let angle = (Vec2::Y).angle_between(ndc);
+	// println!("{}", angle * 180.0 / PI);
+	player_transform.rotation = Quat::from_rotation_z(angle);
+	}
+
 }
