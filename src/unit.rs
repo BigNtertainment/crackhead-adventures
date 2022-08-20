@@ -57,7 +57,7 @@ pub struct Inventory {
 
 impl Inventory {
 	pub fn new(_small_powerup_health: f32, _big_powerup_health: f32) -> Self {
-		Self {small_powerup: 2, big_powerup: 0, small_powerup_health: _small_powerup_health, big_powerup_health: _big_powerup_health}
+		Self {small_powerup: 2, big_powerup: 2, small_powerup_health: _small_powerup_health, big_powerup_health: _big_powerup_health}
 	}
 
 

@@ -43,6 +43,7 @@ impl Plugin for PlayerPlugin {
 					.with_system(update_ui)
 					.with_system(player_aim)
 					.with_system(use_small_powerup)
+					.with_system(use_big_powerup)
 			);
 	}
 }
@@ -285,7 +286,22 @@ fn use_small_powerup(
 
 	if keyboard.just_pressed(KeyCode::E) {
 		if player_inventory.subtract_small_powerup(1) {
+			// add effects here!!
 			player_health.heal(player_inventory.get_small_powerup_health());
+		}
+	}
+}
+
+fn use_big_powerup(
+	mut player_query: Query<(&mut Health, &mut Inventory), With<Player>>,
+	keyboard: Res<Input<KeyCode>>,
+) {
+	let (mut player_health, mut player_inventory) = player_query.single_mut();
+
+	if keyboard.just_pressed(KeyCode::R) {
+		if player_inventory.subtract_big_powerup(1) {
+			// add effects here!!
+			player_health.heal(player_inventory.get_big_powerup_health());
 		}
 	}
 }
