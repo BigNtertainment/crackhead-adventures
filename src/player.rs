@@ -5,6 +5,7 @@ use bevy_rapier2d::prelude::*;
 use rand::prelude::*;
 use bevy_prototype_debug_lines::*;
 
+use crate::enemy::Enemy;
 use crate::{TILE_SIZE, GameState};
 use crate::HEIGHT;
 use crate::WIDTH;
@@ -284,10 +285,11 @@ fn player_shoot(
 	buttons: Res<Input<MouseButton>>,
 	mut commands: Commands,
 	mut lines: ResMut<DebugLines>,
+	enemies_query: Query<Entity, With<Enemy>>,
 ) {
 	let player_transform = player_query.single();
 	let window_size = Vec2::new(WIDTH, HEIGHT);
-
+	
 	if let Some(target) = window.iter().next().unwrap().cursor_position(){
 		// FIXME: something is really wrong here, it doesnt line-up at all with the mouse
 		let target = target * window.iter().next().unwrap().scale_factor() as f32;
@@ -295,7 +297,7 @@ fn player_shoot(
 		
 		let ray_pos = player_transform.translation.truncate();
 		let ray_dir = ndc.normalize();
-		println!("{}", ray_dir);
+		// println!("{}", ray_dir);
 		let max_toi = Real::MAX; //UNLIMITED POWER!!
 		let solid = true;
 		let filter = QueryFilter::default();
@@ -310,7 +312,13 @@ fn player_shoot(
 				// the ray travelled a distance equal to `ray_dir * toi`.
 				// let hit_point = ray_pos + ray_dir * _toi;
 				println!("{:?}", entity);
-				commands.entity(entity).despawn_recursive();
+
+				for enemy in enemies_query.iter() {
+					if entity.id() == enemy.id() {
+						commands.entity(entity).despawn_recursive();
+					}
+				}
+				
 			}
 		}
 
