@@ -271,5 +271,4 @@ fn player_aim(
 		let angle = (Vec2::Y).angle_between(ndc);
 		player_transform.rotation = Quat::from_rotation_z(angle);
 	}
-
 }
