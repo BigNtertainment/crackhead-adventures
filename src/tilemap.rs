@@ -19,11 +19,10 @@ pub struct TileMapPlugin;
 impl Plugin for TileMapPlugin {
 	fn build(&self, app: &mut App) {
 		app
-			.add_startup_system(load_wall_textures)
+			.add_startup_system(load_textures)
 			.add_system_set(
 				SystemSet::on_enter(GameState::Game)
-					.with_system(load_level.label("load_level"))
-					.with_system(texture_walls.after("load_level"))
+					.with_system(load_level)
 			)
 			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_level));
 	}
@@ -79,27 +78,22 @@ impl Tile for WallBundle {
 	}
 }
 
-struct WallTextures(Vec<Handle<Image>>);
-
-fn load_wall_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let mut textures = Vec::new();
-
-	textures.push(asset_server.load("brick_1.png"));
-	textures.push(asset_server.load("brick_2.png"));
-
-	commands.insert_resource(WallTextures(textures));
+struct Textures {
+	wall_textures: Vec<Handle<Image>>
 }
 
-fn texture_walls(mut walls: Query<&mut Handle<Image>, With<Wall>>, textures: Res<WallTextures>) {
-	println!("a");
+fn load_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
+	let mut wall_textures = Vec::new();
 
-	for mut wall_texture in walls.iter_mut() {
-		println!("b");
-		wall_texture.id = textures.0.choose(&mut rand::thread_rng()).expect("The wall textures vector is empty!").id;
-	}
+	wall_textures.push(asset_server.load("brick_1.png"));
+	wall_textures.push(asset_server.load("brick_2.png"));
+
+	commands.insert_resource(Textures {
+		wall_textures
+	});
 }
 
-fn load_level(mut commands: Commands) {
+fn load_level(mut commands: Commands, textures: Res<Textures>) {
 	let file = File::open("assets/level.txt").expect("Level file (level.txt) not found!");
 
 	let mut tiles = Vec::new();
@@ -110,7 +104,8 @@ fn load_level(mut commands: Commands) {
 				let tile = spawn_tile(
 					&mut commands,
 					char,
-					Vec2::new(x as f32, -(y as f32))
+					Vec2::new(x as f32, -(y as f32)),
+					&textures
 				);
 
 				match tile {
@@ -153,12 +148,17 @@ enum TileSpawnError {
 	UnknownChar(char)
 }
 
-fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec2) -> Result<Option<Entity>, TileSpawnError> {
+fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec2, textures: &Res<Textures>) -> Result<Option<Entity>, TileSpawnError> {
 	let position = position_on_tilemap * TILE_SIZE;
 
 	return match tile_char {
 		'#' => {
-			Ok(Some(commands.spawn_bundle(WallBundle::at(position)).id()))
+			let wall = commands
+				.spawn_bundle(WallBundle::at(position))
+				.insert(textures.wall_textures.choose(&mut rand::thread_rng()).expect("There are no wall textures!").clone())
+				.id();
+
+			Ok(Some(wall))
 		},
 		'O' => {
 			Ok(Some(commands.spawn_bundle(PlayerBundle::at(position)).id()))
