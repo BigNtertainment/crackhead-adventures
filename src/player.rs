@@ -7,7 +7,7 @@ use crate::{TILE_SIZE, GameState};
 use crate::HEIGHT;
 use crate::WIDTH;
 use crate::tilemap::{TileCollider, Tile};
-use crate::unit::{Movement, Health};
+use crate::unit::{Movement, Health, Inventory};
 
 #[derive(Component)]
 pub struct Player;
@@ -42,6 +42,7 @@ impl Plugin for PlayerPlugin {
 					.with_system(damage_yourself)
 					.with_system(update_ui)
 					.with_system(player_aim)
+					.with_system(use_small_powerup)
 			);
 	}
 }
@@ -53,7 +54,8 @@ pub struct PlayerBundle {
 	name: Name,
 	player: Player,
 	movement: Movement,
-	health: Health
+	health: Health,
+	inventory: Inventory,
 }
 
 impl Default for PlayerBundle {
@@ -70,7 +72,8 @@ impl Default for PlayerBundle {
 			name: Name::new("Player"),
 			player: Player,
 			movement: Movement { speed: 10.0 },
-			health: Health::new(100.0)
+			health: Health::new(100.0),
+			inventory: Inventory::new(20.0, -50.0),
 		}
 	}
 }
@@ -272,4 +275,17 @@ fn player_aim(
 		player_transform.rotation = Quat::from_rotation_z(angle);
 	}
 
+}
+
+fn use_small_powerup(
+	mut player_query: Query<(&mut Health, &mut Inventory), With<Player>>,
+	keyboard: Res<Input<KeyCode>>,
+) {
+	let (mut player_health, mut player_inventory) = player_query.single_mut();
+
+	if keyboard.just_pressed(KeyCode::E) {
+		if player_inventory.subtract_small_powerup(1) {
+			player_health.heal(player_inventory.get_small_powerup_health());
+		}
+	}
 }

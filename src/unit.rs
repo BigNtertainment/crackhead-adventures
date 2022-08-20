@@ -44,3 +44,62 @@ impl Health {
 		self.max_health
 	}
 }
+
+
+#[derive(Default, Reflect, Inspectable, Component)]
+#[reflect(Component)]
+pub struct Inventory {
+	small_powerup: usize,
+	small_powerup_health: f32,
+	big_powerup: usize,
+	big_powerup_health: f32,
+}
+
+impl Inventory {
+	pub fn new(_small_powerup_health: f32, _big_powerup_health: f32) -> Self {
+		Self {small_powerup: 2, big_powerup: 0, small_powerup_health: _small_powerup_health, big_powerup_health: _big_powerup_health}
+	}
+
+
+	pub fn get_small_powerup(&self) -> usize{
+		self.small_powerup
+	}
+
+	pub fn get_small_powerup_health(&self) -> f32{
+		self.small_powerup_health
+	}
+
+	pub fn subtract_small_powerup(&mut self, amount: usize) -> bool {
+		if amount > self.small_powerup {
+			return false;
+		} else {
+			self.small_powerup -= amount;
+			return true;
+		}
+	}
+
+	pub fn add_small_powerup(&mut self, amount: usize) {
+		self.small_powerup += amount;
+	}
+
+	pub fn get_big_powerup(&self) -> usize{
+		self.big_powerup
+	}
+
+	pub fn get_big_powerup_health(&self) -> f32{
+		self.big_powerup_health
+	}
+
+	pub fn subtract_big_powerup(&mut self, amount: usize) -> bool {
+		if amount > self.big_powerup {
+			return false;
+		} else {
+			self.big_powerup -= amount;
+			return true;
+		}
+	}
+
+	pub fn add_big_powerup(&mut self, amount: usize) {
+		self.big_powerup += amount;
+	}
+}
