@@ -1,24 +1,30 @@
-use std::f32::consts::PI;
-
-use bevy::{
-    input::mouse::{MouseMotion},
-    prelude::*,
-    window::CursorMoved,
-};
+use bevy::prelude::*;
+use bevy::sprite::collide_aabb::{collide, Collision};
 use bevy_inspector_egui::Inspectable;
 
+use rand::prelude::*;
 
 use crate::TILE_SIZE;
 use crate::HEIGHT;
 use crate::WIDTH;
+use crate::tilemap::{TileCollider, Tile};
 
 #[derive(Component)]
 pub struct Player;
+
+#[derive(Component)]
+pub struct HealthBar;
 
 #[derive(Default, Reflect, Inspectable, Component)]
 #[reflect(Component)]
 pub struct Movement {
 	speed: f32,
+}
+
+#[derive(Default, Reflect, Inspectable, Component)]
+#[reflect(Component)]
+pub struct Health {
+	health: f32,
 }
 
 pub struct PlayerPlugin;
@@ -27,32 +33,124 @@ impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app
 			.register_type::<Movement>()
-			.add_startup_system(spawn_player)
-			.add_system(player_movement)
-			.add_system(player_aim);
+			.add_startup_system(ui_setup)
+			.add_system(player_movement.label("player_movement"))
+			.add_system(camera_follow.after("player_movement"))
+			.add_system(damage_yourself)
+			.add_system(update_ui);
 	}
 }
 
-fn spawn_player(mut commands: Commands) {
-	commands.spawn_bundle(SpriteBundle {
-		sprite: Sprite {
-			color: Color::rgb(0.25, 0.25, 0.75),
-			custom_size: Some(Vec2::splat(TILE_SIZE)),
+pub const PLAYER_MAX_HEALTH: f32 = 100.0;
+
+#[derive(Bundle)]
+pub struct PlayerBundle {
+	#[bundle]
+	sprite_budle: SpriteBundle,
+	name: Name,
+	player: Player,
+	movement: Movement,
+	health: Health
+}
+
+impl Default for PlayerBundle {
+	fn default() -> Self {
+		Self {
+			sprite_budle: SpriteBundle {
+				sprite: Sprite {
+					color: Color::rgb(0.25, 0.25, 0.75),
+					custom_size: Some(Vec2::splat(TILE_SIZE)),
+					..Default::default()
+				},
+				..Default::default()
+			},
+			name: Name::new("Player"),
+			player: Player,
+			movement: Movement { speed: 10.0 },
+			health: Health { health: PLAYER_MAX_HEALTH }
+		}
+	}
+}
+
+impl Tile for PlayerBundle {
+	fn at(position: Vec2) -> Self {
+		Self {
+			sprite_budle: SpriteBundle {
+				sprite: Sprite {
+					color: Color::rgb(0.25, 0.25, 0.75),
+					custom_size: Some(Vec2::splat(TILE_SIZE)),
+					..Default::default()
+				},
+				transform: Transform::from_xyz(position.x, position.y, 0.0),
+				..Default::default()
+			},
 			..Default::default()
-		},
-		..Default::default()
-	})
-	.insert(Name::new("Player"))
-	.insert(Player)
-	.insert(Movement { speed: 10.0 });
+		}
+	}
+}
+
+fn ui_setup(mut commands: Commands) {
+	commands
+		.spawn_bundle(NodeBundle {
+			style: Style  {
+				size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+				padding: UiRect::all(Val::Px(20.0)),
+                justify_content: JustifyContent::SpaceBetween,
+                ..Default::default()
+			},
+            color: Color::NONE.into(),
+			..Default::default()
+		})
+		.insert(Name::new("UI"))
+		.with_children(|parent| {
+			parent
+				.spawn_bundle(NodeBundle {
+					style: Style {
+						size: Size::new(Val::Px(240.0), Val::Percent(100.0)),
+						flex_direction: FlexDirection::Column,
+						justify_content: JustifyContent::FlexEnd,
+						..Default::default()
+					},
+					color: Color::NONE.into(),
+					..Default::default()
+				})
+				.insert(Name::new("Bars"))
+				.with_children(|parent| {
+					parent
+						.spawn_bundle(NodeBundle {
+							style: Style {
+								size: Size::new(Val::Percent(100.0), Val::Px(30.0)),
+								padding: UiRect::all(Val::Px(7.0)),
+								..Default::default()
+							},
+							color: Color::rgb(0.0, 0.0, 0.0).into(),
+							..Default::default()
+						})
+						.insert(Name::new("HealthBarContainer"))
+						.with_children(|parent| {
+							parent
+								.spawn_bundle(NodeBundle {
+									style: Style {
+										size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+										..Default::default()
+									},
+									color: Color::rgb(0.95, 0.04, 0.07).into(),
+									..Default::default()
+								})
+								.insert(Name::new("HealthBar"))
+								.insert(HealthBar);
+						});
+				});
+		});
 }
 
 fn player_movement(
-	mut player_query: Query<(&Movement, &mut Transform), With<Player>>,
+	mut player_query: Query<(&Movement, &mut Transform, &Sprite), With<Player>>,
+	wall_query: Query<&Transform, (With<TileCollider>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>
 ) {
-	let (movement, mut transform) = player_query.single_mut();
+	let (movement, mut transform, sprite) = player_query.iter_mut().next().expect("Player not found in the scene!");
 
 	let mut direction = Vec3::new(0.0, 0.0, 0.0);
 
@@ -73,8 +171,79 @@ fn player_movement(
 	}
 
 	if direction.length() != 0.0 {
-		transform.translation += direction.normalize() * movement.speed * TILE_SIZE * time.delta_seconds();
+		let mut target = transform.translation + direction.normalize() * movement.speed * TILE_SIZE * time.delta_seconds();
+
+		let player_size = if let Some(player_size) = sprite.custom_size {
+			Vec2::new(
+				player_size.x * transform.scale.x,
+				player_size.y * transform.scale.y,
+			)
+		} else {
+			Vec2::new(transform.scale.x, transform.scale.y)
+		};
+
+		for wall_transform in wall_query.iter() {
+			let collision = collide(
+				target,
+				player_size,
+				wall_transform.translation,
+				Vec2::splat(TILE_SIZE)
+			);
+
+			if let Some(collision) = collision {
+				match collision {
+					Collision::Bottom => {
+						target.y = wall_transform.translation.y - TILE_SIZE;
+					},
+					Collision::Top => {
+						target.y = wall_transform.translation.y + TILE_SIZE;
+					},
+					Collision::Left => {
+						target.x = wall_transform.translation.x - TILE_SIZE;
+					},
+					Collision::Right => {
+						target.x = wall_transform.translation.x + TILE_SIZE;
+					},
+					Collision::Inside => { /* what */ }
+				};
+			}
+		}
+
+		transform.translation = target;
 	}
+}
+
+fn camera_follow(
+	player_query: Query<&Transform, With<Player>>,
+	mut camera_query: Query<&mut Transform, (Without<Player>, With<Camera>)>
+) {
+	let player_transform = player_query.single();
+	let mut camera_transform = camera_query.single_mut();
+
+	camera_transform.translation.x = player_transform.translation.x;
+	camera_transform.translation.y = player_transform.translation.y;
+}
+
+fn update_ui(
+	player_query: Query<&Health, With<Player>>,
+	mut health_bar_query: Query<&mut Style, With<HealthBar>>
+) {
+	let player_health = player_query.single();
+	let mut health_bar_style = health_bar_query.single_mut();
+
+	health_bar_style.size.width = Val::Percent(player_health.health / PLAYER_MAX_HEALTH * 100.0);
+}
+
+fn damage_yourself(
+	mut player_query: Query<&mut Health, With<Player>>,
+	keyboard: Res<Input<KeyCode>>,
+) {
+	let mut player_health = player_query.single_mut();
+
+	if keyboard.just_pressed(KeyCode::Space) {
+		player_health.health -= rand::thread_rng().gen::<f32>() * 10.0 + 10.0;
+	}
+
 }
 
 fn player_aim(
