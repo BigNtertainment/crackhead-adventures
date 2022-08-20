@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
@@ -12,6 +14,7 @@ use crate::tilemap::{TileCollider, Tile};
 use crate::unit::{Movement, Health};
 
 pub const WEAPON_RANGE: f32 = 200.0;
+pub const WEAPON_COOLDOWN: f32 = 0.3;
 
 #[derive(Component)]
 pub struct Player;
@@ -28,6 +31,8 @@ impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app
 			.register_type::<Movement>()
+
+			.insert_resource(ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)))
 
 			.add_system_set(
 				SystemSet::on_enter(GameState::Game)
@@ -277,17 +282,26 @@ fn player_aim(
 		let angle = (Vec2::Y).angle_between(target);
 		player_transform.rotation = Quat::from_rotation_z(angle);
 	}
-
 }
+
+struct ShootCooldown(Timer);
 
 fn player_shoot(
 	mut commands: Commands,
 	player_query: Query<&Transform, With<Player>>,
 	enemies_query: Query<Entity, With<Enemy>>,
+	mut cooldown: ResMut<ShootCooldown>,
 	rapier_context: Res<RapierContext>,
 	buttons: Res<Input<MouseButton>>,
+	time: Res<Time>,
 	window: Res<Windows>,
 ) {
+	cooldown.0.tick(time.delta());
+
+	if !cooldown.0.finished() {
+		return;
+	}
+
 	let player_transform = player_query.single();
 	let window_size = Vec2::new(WIDTH, HEIGHT);
 	
@@ -312,7 +326,9 @@ fn player_shoot(
 				}
 				
 			}
-		}
 
+			// Reset the cooldown timer
+			cooldown.0.reset();
+		}
 	}
 }
