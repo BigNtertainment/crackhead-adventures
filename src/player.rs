@@ -260,12 +260,9 @@ fn damage_yourself(
 
 fn player_aim(
 	mut player_query: Query<&mut Transform, (With<Player>, Without<Camera2d>)>,
-	camera_query: Query<(&Camera, &GlobalTransform), (With<Camera2d>, Without<Player>)>,
-    // mut cursor_event_reader: EventReader<CursorMoved>,
 	window: Res<Windows>
 ) {
 	let mut player_transform = player_query.single_mut();
-	let (camera, camera_transform) = camera_query.single();
 	
 	if let Some(target) = window.iter().next().unwrap().cursor_position(){
 		let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
