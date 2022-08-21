@@ -1,13 +1,14 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy::sprite::collide_aabb::{collide, Collision};
 use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
+use navmesh::{NavMesh, NavVec3};
 
+use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::{TILE_SIZE, GameState};
-use crate::tilemap::{Tile, TileCollider};
+use crate::tilemap::Tile;
 use crate::unit::Movement;
 
 pub const ENEMY_SIGHT: f32 = 400.0;
@@ -57,7 +58,7 @@ impl Default for EnemyBundle {
 				ai_state: EnemyAiState::Idle,
 				shock_timer: Timer::new(Duration::from_secs_f32(SHOCK_DURATION), false)
 			},
-			movement: Movement { speed: 7.0 },
+			movement: Movement { speed: 3.0 },
 			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0),
 		}
 	}
@@ -82,15 +83,19 @@ impl Tile for EnemyBundle {
 
 enum EnemyAiState {
 	Idle,
-	Alert(Vec2)
+	Alert { 
+		path: Option<Vec<NavVec3>>,
+		current: usize
+	}
 }
 
 fn update_enemy_ai(
 	mut enemies: Query<(Entity, &mut Transform, &Movement, &mut Enemy)>,
 	player: Query<(Entity, &Transform), (With<Player>, Without<Enemy>)>,
-	wall_query: Query<&Transform, (With<TileCollider>, Without<Player>, Without<Enemy>)>,
+	// wall_query: Query<&Transform, (With<TileCollider>, Without<Player>, Without<Enemy>)>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
+	nav_mesh: Res<EnemyNavMesh>,
 	mut lines: ResMut<DebugLines>
 ) {
 	let (player, player_transform) = player.single();
@@ -106,18 +111,24 @@ fn update_enemy_ai(
 		let filter = QueryFilter::default()
 			.exclude_collider(entity);
 
-		if cfg!(debug_assertions) {
-			lines.line(ray_origin.extend(0.0), (ray_origin + ray_direction * max_time_of_impact).extend(0.0), 0.0);
-		}
-
 		if let Some((entity, _))  = rapier_context.cast_ray(
 			ray_origin, ray_direction, max_time_of_impact, solid, filter
 		) {
 			if entity.id() == player.id() {
 				// The enemy can see the player
-				enemy.ai_state = EnemyAiState::Alert(player_position.truncate());
+				let path = nav_mesh.get_nav_mesh().expect("The nav mesh has not been baked!").find_path(
+					transform.translation.to_array().into(),
+					player_position.to_array().into(),
+					navmesh::NavQuery::Closest,
+					navmesh::NavPathMode::Accuracy
+				);
 
-				// Don't shoot imidietally
+				enemy.ai_state = EnemyAiState::Alert {
+					path,
+					current: 0
+				};
+
+				// Don't shoot immediately
 				enemy.shock_timer.tick(time.delta());
 
 				if enemy.shock_timer.finished() {
@@ -130,45 +141,25 @@ fn update_enemy_ai(
 
 		enemy.shock_timer.reset();
 
-		if let EnemyAiState::Alert(target) = enemy.ai_state {
-			let direction = (target - transform.translation.truncate()).normalize_or_zero();
+		if let EnemyAiState::Alert { path: Some(path), current } = &mut enemy.ai_state {
+			let target = path[*current];
+
+			let movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
 
 			// If the enemy reached its destination
-			if direction.length() == 0.0 {
-				enemy.ai_state = EnemyAiState::Idle;
+			if movement_vector.length() <= 5.0 {
+				*current += 1;
+				
+				if *current == path.len() {
+					enemy.ai_state = EnemyAiState::Idle;
+				}
+				
 				continue;
 			}
 
-			let mut target = transform.translation + (direction * TILE_SIZE * movement.speed * time.delta_seconds()).extend(0.0);
+			let direction = movement_vector.normalize_or_zero();
 
-			for wall_transform in wall_query.iter() {
-				let collision = collide(
-					target,
-					Vec2::splat(TILE_SIZE),
-					wall_transform.translation,
-					Vec2::splat(TILE_SIZE)
-				);
-	
-				if let Some(collision) = collision {
-					match collision {
-						Collision::Bottom => {
-							target.y = wall_transform.translation.y - TILE_SIZE;
-						},
-						Collision::Top => {
-							target.y = wall_transform.translation.y + TILE_SIZE;
-						},
-						Collision::Left => {
-							target.x = wall_transform.translation.x - TILE_SIZE;
-						},
-						Collision::Right => {
-							target.x = wall_transform.translation.x + TILE_SIZE;
-						},
-						Collision::Inside => { /* what */ }
-					};
-				}
-			}
-	
-			transform.translation = target;
+			transform.translation += (direction * TILE_SIZE * movement.speed * time.delta_seconds()).extend(0.0);
 		}
 	}
 }

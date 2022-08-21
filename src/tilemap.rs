@@ -8,6 +8,7 @@ use bevy_rapier2d::prelude::*;
 use crate::{TILE_SIZE, GameState};
 use crate::enemy::EnemyBundle;
 use crate::player::PlayerBundle;
+use crate::enemy_nav_mesh::EnemyNavMesh;
 
 #[derive(Component)]
 pub struct Tilemap;
@@ -20,12 +21,18 @@ pub struct TileMapPlugin;
 impl Plugin for TileMapPlugin {
 	fn build(&self, app: &mut App) {
 		app
+			.insert_resource(EnemyNavMesh::new())
+
 			.add_startup_system(load_textures)
 			.add_system_set(
 				SystemSet::on_enter(GameState::Game)
-					.with_system(load_level)
+					.with_system(load_level.label("load_level"))
 			)
-			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_level));
+			.add_system_set(
+				SystemSet::on_exit(GameState::Game)
+					.with_system(drop_level)
+					.with_system(|mut nav_mesh: ResMut<EnemyNavMesh>| { nav_mesh.clear(); })
+			);
 	}
 }
 
@@ -86,7 +93,7 @@ fn load_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
 	});
 }
 
-fn load_level(mut commands: Commands, textures: Res<Textures>) {
+fn load_level(mut commands: Commands, textures: Res<Textures>, mut nav_mesh: ResMut<EnemyNavMesh>) {
 	let file = File::open("assets/level.txt").expect("Level file (level.txt) not found!");
 
 	let mut tiles = Vec::new();
@@ -98,7 +105,8 @@ fn load_level(mut commands: Commands, textures: Res<Textures>) {
 					&mut commands,
 					char,
 					Vec2::new(x as f32, -(y as f32)),
-					&textures
+					&textures,
+					&mut nav_mesh
 				);
 
 				match tile {
@@ -128,6 +136,8 @@ fn load_level(mut commands: Commands, textures: Res<Textures>) {
 		.insert(GlobalTransform::default())
 		.insert(Tilemap)
 		.push_children(&tiles);
+
+	nav_mesh.bake();
 }
 
 fn drop_level(mut commands: Commands, tilemap: Query<Entity, With<Tilemap>>) {
@@ -139,8 +149,17 @@ enum TileSpawnError {
 	UnknownChar(char)
 }
 
-fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec2, textures: &Res<Textures>) -> Result<Option<Entity>, TileSpawnError> {
+fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec2, textures: &Res<Textures>, nav_mesh: &mut ResMut<EnemyNavMesh>) -> Result<Option<Entity>, TileSpawnError> {
 	let position = position_on_tilemap * TILE_SIZE;
+
+	let mut register_to_nav_mesh = || {
+		nav_mesh.insert_square(
+			position + Vec2::new(TILE_SIZE, TILE_SIZE) / 2.0,
+			position + Vec2::new(TILE_SIZE, -TILE_SIZE) / 2.0,
+			position + Vec2::new(-TILE_SIZE, -TILE_SIZE) / 2.0,
+			position + Vec2::new(-TILE_SIZE, TILE_SIZE) / 2.0,
+		);
+	};
 
 	return match tile_char {
 		'#' => {
@@ -155,9 +174,11 @@ fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec
 			Ok(Some(commands.spawn_bundle(PlayerBundle::at(position)).id()))
 		},
 		'E' => {
+			register_to_nav_mesh();
 			Ok(Some(commands.spawn_bundle(EnemyBundle::at(position)).id()))
 		},
 		' ' => {
+			register_to_nav_mesh();
 			Ok(None)
 		},
 		unknown => {

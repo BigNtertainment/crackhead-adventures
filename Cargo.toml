@@ -47,4 +47,5 @@ features = [
 bevy-inspector-egui = "0.12.1"
 bevy_rapier2d = "0.16.1"
 bevy_prototype_debug_lines = "0.8"
+navmesh = "0.8"
 rand = "0.8.5"

@@ -15,6 +15,7 @@ mod enemy;
 mod debug;
 mod tilemap;
 mod game_over;
+mod enemy_nav_mesh;
 
 use enemy::EnemyPlugin;
 use player::PlayerPlugin;
