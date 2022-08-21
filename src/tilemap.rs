@@ -87,7 +87,7 @@ fn load_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn load_level(mut commands: Commands, textures: Res<Textures>) {
-	let file = File::open("assets/level.txt").expect("Level file (level.txt) not found!");
+	let file = File::open("assets/level.cum").expect("Level file (level.cum) not found!");
 
 	let mut tiles = Vec::new();
 

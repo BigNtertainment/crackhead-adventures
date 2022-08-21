@@ -18,6 +18,8 @@ use crate::unit::{Movement, Health, Inventory};
 
 pub const WEAPON_RANGE: f32 = 400.0;
 pub const WEAPON_COOLDOWN: f32 = 0.5;
+pub const SMALL_POWERUP_DURATION: f32 = 5.0;
+pub const BIG_POWERUP_DURATION: f32 = 5.0;
 
 #[derive(Component)]
 pub struct Player;
@@ -28,6 +30,14 @@ pub struct PlayerUi;
 #[derive(Component)]
 pub struct HealthBar;
 
+#[derive(Component)]
+pub struct SmallPowerUpCounterNumber;
+
+#[derive(Component)]
+pub struct BigPowerUpCounterNumber;
+
+pub struct PaintFont(Handle<Font>);
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
@@ -36,6 +46,7 @@ impl Plugin for PlayerPlugin {
 			.register_type::<Movement>()
 
 			.add_startup_system(load_shot_sound)
+			.add_startup_system(load_font)
 
 			.add_system_set(
 				SystemSet::on_enter(GameState::Game)
@@ -72,6 +83,8 @@ pub struct PlayerBundle {
 	health: Health,
 	shoot_cooldown: ShootCooldown,
 	inventory: Inventory,
+	small_power_up_cooldown: SmallPowerupCooldown,
+	big_power_up_cooldown: BigPowerupCooldown,
 }
 
 impl Default for PlayerBundle {
@@ -91,6 +104,8 @@ impl Default for PlayerBundle {
 			health: Health::new(100.0),
 			shoot_cooldown: ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)),
 			inventory: Inventory::new(20.0, -50.0),
+			small_power_up_cooldown: SmallPowerupCooldown(Timer::new(Duration::from_secs_f32(SMALL_POWERUP_DURATION), false)),
+			big_power_up_cooldown: BigPowerupCooldown(Timer::new(Duration::from_secs_f32(BIG_POWERUP_DURATION), false)),
 		}
 	}
 }
@@ -112,13 +127,15 @@ impl Tile for PlayerBundle {
 	}
 }
 
-fn ui_setup(mut commands: Commands) {
+fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
+	let font = &font.0;
+
 	commands
 		.spawn_bundle(NodeBundle {
 			style: Style  {
 				size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
 				padding: UiRect::all(Val::Px(20.0)),
-                justify_content: JustifyContent::SpaceBetween,
+				flex_direction: FlexDirection::ColumnReverse,
                 ..Default::default()
 			},
             color: Color::NONE.into(),
@@ -130,7 +147,8 @@ fn ui_setup(mut commands: Commands) {
 			parent
 				.spawn_bundle(NodeBundle {
 					style: Style {
-						size: Size::new(Val::Px(240.0), Val::Percent(100.0)),
+						size: Size::new(Val::Px(240.0), Val::Auto),
+						margin: UiRect::new(Val::Px(0.0), Val::Px(0.0), Val::Px(0.0), Val::Px(10.0)),
 						flex_direction: FlexDirection::Column,
 						justify_content: JustifyContent::FlexEnd,
 						..Default::default()
@@ -164,6 +182,108 @@ fn ui_setup(mut commands: Commands) {
 								.insert(Name::new("HealthBar"))
 								.insert(HealthBar);
 						});
+				}); 
+			
+			parent
+				.spawn_bundle(NodeBundle {
+					style: Style {
+						size: Size::new(Val::Px(240.0), Val::Percent(20.0)),
+						flex_direction: FlexDirection::ColumnReverse,
+						..Default::default()
+					},
+					color: Color::NONE.into(),
+					..Default::default()
+				})
+				.insert(Name::new("Inventory"))
+				.with_children(|parent| {
+
+					//SMALL POWER UP COUNTER
+					parent
+					.spawn_bundle(
+						TextBundle::from_section(
+							"Cocaine: ",
+							TextStyle {
+								font: font.clone(),
+								font_size: 32.0,
+								color: Color::PINK, // this needs changing
+							},
+						)
+						.with_style(Style {
+							size: Size::new(Val::Auto, Val::Auto),
+							margin: UiRect::all(Val::Px(0.0)),
+							..default()
+						}),
+					)
+					.insert(Name::new("SmallPowerUpCounter"))
+					.with_children(|parent| {
+						parent
+							.spawn_bundle(
+								TextBundle::from_section(
+									"0",
+									TextStyle {
+										font: font.clone(),
+										font_size: 32.0,
+										color: Color::PINK, // this needs changing
+									},
+								)
+								.with_style(Style {
+									size: Size::new(Val::Auto, Val::Auto),
+									margin: UiRect::new(Val::Px(115.0), Val::Px(0.0), Val::Px(0.0), Val::Px(0.0)),
+									..default()
+								}),
+							)
+							.insert(Name::new("SmallPowerUpCounterNumber"))
+							.insert(SmallPowerUpCounterNumber);
+					});
+
+					parent
+					.spawn_bundle(NodeBundle {
+						..Default::default()
+						// TODO: make the rest of the inventory ui:
+						//	-make the 2 bars for powerup cooldown
+						//  -change some text for images
+					});
+
+					//BIG POWER UP COUNTER
+					parent
+					.spawn_bundle(
+						TextBundle::from_section(
+							"Cocaine+1: ",
+							TextStyle {
+								font: font.clone(),
+								font_size: 32.0,
+								color: Color::PINK, // this needs changing
+							},
+						)
+						.with_style(Style {
+							size: Size::new(Val::Auto, Val::Auto),
+							margin: UiRect::all(Val::Px(0.0)),
+							..default()
+						}),
+					)
+					.insert(Name::new("BigPowerUpCounter"))
+					.with_children(|parent| {
+						parent
+							.spawn_bundle(
+								TextBundle::from_section(
+									"0",
+									TextStyle {
+										font: font.clone(),
+										font_size: 32.0,
+										color: Color::PINK, // this needs changing
+									},
+								)
+								.with_style(Style {
+									size: Size::new(Val::Auto, Val::Auto),
+									margin: UiRect::new(Val::Px(155.0), Val::Px(0.0), Val::Px(0.0), Val::Px(0.0)),
+									..default()
+								}),
+							)
+							.insert(Name::new("BigPowerUpCounterNumber"))
+							.insert(BigPowerUpCounterNumber);
+					});
+					
+					
 				});
 		});
 }
@@ -254,13 +374,21 @@ fn camera_follow(
 }
 
 fn update_ui(
-	player_query: Query<&Health, With<Player>>,
-	mut health_bar_query: Query<&mut Style, With<HealthBar>>
+	player_query: Query<(&Health, &Inventory), With<Player>>,
+	mut health_bar_query: Query<&mut Style, With<HealthBar>>,
+	mut small_powerup_counter_query: Query<&mut Text, (With<SmallPowerUpCounterNumber>, Without<BigPowerUpCounterNumber>)>,
+	mut big_powerup_counter_query: Query<&mut Text, (With<BigPowerUpCounterNumber>, Without<SmallPowerUpCounterNumber>)>
 ) {
-	let player_health = player_query.single();
+	let (player_health, inventory) = player_query.single();
 	let mut health_bar_style = health_bar_query.single_mut();
 
 	health_bar_style.size.width = Val::Percent(player_health.get_health() / player_health.get_max_health() * 100.0);
+
+	let mut small_powerup_counter = small_powerup_counter_query.single_mut();
+	small_powerup_counter.sections[0].value = inventory.get_small_powerup().to_string();
+
+	let mut big_powerup_counter = big_powerup_counter_query.single_mut();
+	big_powerup_counter.sections[0].value = inventory.get_big_powerup().to_string();
 }
 
 fn damage_yourself(
@@ -298,6 +426,12 @@ fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
 	let sound = asset_server.load("shot.wav");
 
 	commands.insert_resource(ShotSound(sound));
+}
+
+fn load_font(mut commands: Commands, asset_server: Res<AssetServer>) {
+	commands.insert_resource(
+		PaintFont(asset_server.load("floyd.ttf"))
+	);
 }
 
 struct ShotSound(Handle<AudioSource>);
@@ -358,30 +492,64 @@ fn player_shoot(
 	}
 }
 
+#[derive(Component)]
+pub struct SmallPowerupCooldown(Timer);
+
 fn use_small_powerup(
-	mut player_query: Query<(&mut Health, &mut Inventory), With<Player>>,
+	mut player_query: Query<(&mut Health, &mut Inventory, &mut SmallPowerupCooldown), With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
+	time: Res<Time>,
 ) {
-	let (mut player_health, mut player_inventory) = player_query.single_mut();
+	let (mut player_health, mut player_inventory, mut cooldown) = player_query.single_mut();
+
+	cooldown.0.tick(time.delta());
+
+	if !cooldown.0.finished() {
+		return;
+	}
 
 	if keyboard.just_pressed(KeyCode::E) {
 		if player_inventory.subtract_small_powerup(1) {
 			// add effects here!!
 			player_health.heal(player_inventory.get_small_powerup_health());
+			// Reset the cooldown timer
+			cooldown.0.reset();
 		}
+	}
+
+	if cooldown.0.just_finished() {
+		// remove the effects here
 	}
 }
 
+#[derive(Component)]
+pub struct BigPowerupCooldown(Timer);
+
 fn use_big_powerup(
-	mut player_query: Query<(&mut Health, &mut Inventory), With<Player>>,
+	mut player_query: Query<(&mut Health, &mut Inventory, &mut Movement, &mut SmallPowerupCooldown), With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
+	time: Res<Time>,
 ) {
-	let (mut player_health, mut player_inventory) = player_query.single_mut();
+	let (mut player_health, mut player_inventory, mut movement, mut cooldown) = player_query.single_mut();
+
+	cooldown.0.tick(time.delta());
+
+	if !cooldown.0.finished() {
+		return;
+	}
 
 	if keyboard.just_pressed(KeyCode::R) {
 		if player_inventory.subtract_big_powerup(1) {
 			// add effects here!!
 			player_health.heal(player_inventory.get_big_powerup_health());
+			movement.speed *= 2.0;
+			// Reset the cooldown timer
+			cooldown.0.reset();
 		}
+	}
+
+	if cooldown.0.just_finished() {
+		// remove the effects here
+		movement.speed /= 2.0;
 	}
 }
