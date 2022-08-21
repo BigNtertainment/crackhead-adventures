@@ -16,8 +16,8 @@ use crate::WIDTH;
 use crate::tilemap::{TileCollider, Tile};
 use crate::unit::{Movement, Health};
 
-pub const WEAPON_RANGE: f32 = 200.0;
-pub const WEAPON_COOLDOWN: f32 = 0.3;
+pub const WEAPON_RANGE: f32 = 400.0;
+pub const WEAPON_COOLDOWN: f32 = 0.5;
 
 #[derive(Component)]
 pub struct Player;

@@ -39,7 +39,7 @@ fn main() {
 
         // Resources
         .insert_resource(WindowDescriptor {
-            title: "Angel Dust".to_string(),
+            title: "Give me some of your magic dust or I will f**king murder you".to_string(),
             width: WIDTH,
             height: HEIGHT,
             resizable: false,
