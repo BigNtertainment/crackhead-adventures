@@ -1,15 +1,15 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy_prototype_debug_lines::DebugLines;
+use bevy_kira_audio::{AudioSource, Audio, AudioControl};
 use bevy_rapier2d::prelude::*;
-use navmesh::{NavMesh, NavVec3};
+use navmesh::NavVec3;
 
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::{TILE_SIZE, GameState};
 use crate::tilemap::Tile;
-use crate::unit::Movement;
+use crate::unit::{Movement, Shooting, Health};
 
 pub const ENEMY_SIGHT: f32 = 400.0;
 pub const SHOCK_DURATION: f32 = 1.25;
@@ -19,6 +19,8 @@ pub struct EnemyPlugin;
 impl Plugin for EnemyPlugin {
 	fn build(&self, app: &mut App) {
 		app
+			.add_startup_system(load_shot_sound)
+
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(update_enemy_ai)
@@ -39,6 +41,7 @@ pub struct EnemyBundle {
 	name: Name,
 	enemy: Enemy,
 	movement: Movement,
+	shooting: Shooting,
 	rapier_collider: Collider,
 }
 
@@ -59,6 +62,9 @@ impl Default for EnemyBundle {
 				shock_timer: Timer::new(Duration::from_secs_f32(SHOCK_DURATION), false)
 			},
 			movement: Movement { speed: 3.0 },
+			shooting: Shooting {
+				cooldown: Timer::from_seconds(1.0, false)
+			},
 			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0),
 		}
 	}
@@ -81,6 +87,14 @@ impl Tile for EnemyBundle {
 	}
 }
 
+fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
+	let sound = asset_server.load("shot.wav");
+
+	commands.insert_resource(ShotSound(sound));
+}
+
+struct ShotSound(Handle<AudioSource>);
+
 enum EnemyAiState {
 	Idle,
 	Alert { 
@@ -90,19 +104,22 @@ enum EnemyAiState {
 }
 
 fn update_enemy_ai(
-	mut enemies: Query<(Entity, &mut Transform, &Movement, &mut Enemy)>,
-	player: Query<(Entity, &Transform), (With<Player>, Without<Enemy>)>,
-	// wall_query: Query<&Transform, (With<TileCollider>, Without<Player>, Without<Enemy>)>,
+	mut enemies: Query<(Entity, &mut Transform, &Movement, &mut Shooting, &mut Enemy)>,
+	mut player: Query<(Entity, &Transform, &mut Health), (With<Player>, Without<Enemy>)>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
+	mut state: ResMut<State<GameState>>,
 	nav_mesh: Res<EnemyNavMesh>,
-	mut lines: ResMut<DebugLines>
+	audio: Res<Audio>,
+	shot_sound: Res<ShotSound>
 ) {
-	let (player, player_transform) = player.single();
+	let (player, player_transform, mut player_health) = player.single_mut();
 
 	let player_position = player_transform.translation;
 
-	for (entity, mut transform, movement, mut enemy) in enemies.iter_mut() {
+	for (entity, mut transform, movement, mut shooting, mut enemy) in enemies.iter_mut() {
+		shooting.cooldown.tick(time.delta());
+
 		// Look if there is a direct line of sight to the player
 		let ray_origin = transform.translation.truncate();
 		let ray_direction = (player_position - transform.translation).truncate().normalize();
@@ -137,8 +154,16 @@ fn update_enemy_ai(
 				// Don't shoot immediately
 				enemy.shock_timer.tick(time.delta());
 
-				if enemy.shock_timer.finished() {
-					fire_at_player();
+				if enemy.shock_timer.finished() && shooting.cooldown.finished() {
+					if player_health.take_damage(rand::random::<f32>() * 5.0 + 20.0) {
+						state.set(GameState::GameOver).expect("Failed to change state");
+					}
+
+					audio
+						.play(shot_sound.0.clone())
+						.with_volume(0.1);
+
+					shooting.cooldown.reset();
 				}
 
 				continue;
@@ -172,8 +197,4 @@ fn update_enemy_ai(
 			);
 		}
 	}
-}
-
-fn fire_at_player() {
-	println!("pew pew");
 }

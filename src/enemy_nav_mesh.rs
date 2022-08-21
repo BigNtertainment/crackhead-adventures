@@ -8,6 +8,7 @@ pub struct EnemyNavMesh {
 	nav_mesh: Option<NavMesh>
 }
 
+#[allow(unused)]
 impl EnemyNavMesh {
 	pub fn new() -> Self {
 		EnemyNavMesh {

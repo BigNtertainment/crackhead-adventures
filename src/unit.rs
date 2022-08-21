@@ -28,6 +28,8 @@ impl Health {
 
 		self.health <= 0.0
 	}
+	
+	#[allow(unused)]
 	pub fn heal(&mut self, amount: f32) {
 		self.health += amount;
 
@@ -43,4 +45,10 @@ impl Health {
 	pub fn get_max_health(&self) -> f32 {
 		self.max_health
 	}
+}
+
+
+#[derive(Component)]
+pub struct Shooting {
+	pub cooldown: Timer
 }

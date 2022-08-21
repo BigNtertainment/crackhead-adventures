@@ -14,7 +14,7 @@ use crate::{TILE_SIZE, GameState};
 use crate::HEIGHT;
 use crate::WIDTH;
 use crate::tilemap::{TileCollider, Tile};
-use crate::unit::{Movement, Health};
+use crate::unit::{Movement, Health, Shooting};
 
 pub const WEAPON_RANGE: f32 = 400.0;
 pub const WEAPON_COOLDOWN: f32 = 0.5;
@@ -67,7 +67,7 @@ pub struct PlayerBundle {
 	player: Player,
 	movement: Movement,
 	health: Health,
-	shoot_cooldown: ShootCooldown,
+	shooting: Shooting,
 	rapier_collider: Collider,
 }
 
@@ -86,7 +86,9 @@ impl Default for PlayerBundle {
 			player: Player,
 			movement: Movement { speed: 10.0 },
 			health: Health::new(100.0),
-			shoot_cooldown: ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)),
+			shooting: Shooting {
+				cooldown: Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)
+			},
 			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0)
 		}
 	}
@@ -299,12 +301,9 @@ fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 struct ShotSound(Handle<AudioSource>);
 
-#[derive(Component)]
-pub struct ShootCooldown(Timer);
-
 fn player_shoot(
 	mut commands: Commands,
-	mut player_query: Query<(Entity, &Transform, &mut ShootCooldown), With<Player>>,
+	mut player_query: Query<(Entity, &Transform, &mut Shooting), With<Player>>,
 	enemies_query: Query<Entity, With<Enemy>>,
 	rapier_context: Res<RapierContext>,
 	buttons: Res<Input<MouseButton>>,
@@ -313,11 +312,11 @@ fn player_shoot(
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>
 ) {
-	let (player_entity, player_transform, mut cooldown) = player_query.single_mut();
+	let (player_entity, player_transform, mut shooting) = player_query.single_mut();
 
-	cooldown.0.tick(time.delta());
+	shooting.cooldown.tick(time.delta());
 
-	if !cooldown.0.finished() {
+	if !shooting.cooldown.finished() {
 		return;
 	}
 
@@ -351,7 +350,7 @@ fn player_shoot(
 				.with_volume(0.15);
 
 			// Reset the cooldown timer
-			cooldown.0.reset();
+			shooting.cooldown.reset();
 		}
 	}
 }
