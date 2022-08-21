@@ -128,8 +128,6 @@ fn load_level(mut commands: Commands, textures: Res<Textures>) {
 		.insert(GlobalTransform::default())
 		.insert(Tilemap)
 		.push_children(&tiles);
-
-	println!("c");
 }
 
 fn drop_level(mut commands: Commands, tilemap: Query<Entity, With<Tilemap>>) {

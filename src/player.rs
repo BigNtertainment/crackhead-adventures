@@ -67,7 +67,8 @@ pub struct PlayerBundle {
 	player: Player,
 	movement: Movement,
 	health: Health,
-	shoot_cooldown: ShootCooldown
+	shoot_cooldown: ShootCooldown,
+	rapier_collider: Collider,
 }
 
 impl Default for PlayerBundle {
@@ -85,7 +86,8 @@ impl Default for PlayerBundle {
 			player: Player,
 			movement: Movement { speed: 10.0 },
 			health: Health::new(100.0),
-			shoot_cooldown: ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false))
+			shoot_cooldown: ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)),
+			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0)
 		}
 	}
 }
@@ -302,7 +304,7 @@ pub struct ShootCooldown(Timer);
 
 fn player_shoot(
 	mut commands: Commands,
-	mut player_query: Query<(&Transform, &mut ShootCooldown), With<Player>>,
+	mut player_query: Query<(Entity, &Transform, &mut ShootCooldown), With<Player>>,
 	enemies_query: Query<Entity, With<Enemy>>,
 	rapier_context: Res<RapierContext>,
 	buttons: Res<Input<MouseButton>>,
@@ -311,7 +313,7 @@ fn player_shoot(
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>
 ) {
-	let (player_transform, mut cooldown) = player_query.single_mut();
+	let (player_entity, player_transform, mut cooldown) = player_query.single_mut();
 
 	cooldown.0.tick(time.delta());
 
@@ -329,7 +331,8 @@ fn player_shoot(
 		let ray_direction = target.normalize();
 		let max_time_of_impact = WEAPON_RANGE;
 		let solid = true;
-		let filter = QueryFilter::default();
+		let filter = QueryFilter::default()
+			.exclude_collider(player_entity);
 
 		if buttons.just_pressed(MouseButton::Left) {	
 			if let Some((entity, _toi))  = rapier_context.cast_ray(

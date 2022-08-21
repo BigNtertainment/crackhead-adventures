@@ -16,6 +16,7 @@ mod debug;
 mod tilemap;
 mod game_over;
 
+use enemy::EnemyPlugin;
 use player::PlayerPlugin;
 use debug::DebugPlugin;
 use tilemap::TileMapPlugin;
@@ -52,6 +53,7 @@ fn main() {
         .add_plugin(AudioPlugin)
         .add_plugin(TileMapPlugin)
         .add_plugin(PlayerPlugin)
+        .add_plugin(EnemyPlugin)
         .add_plugin(GameOverPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(DebugLinesPlugin::default())
