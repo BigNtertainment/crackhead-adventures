@@ -34,7 +34,13 @@ pub struct HealthBar;
 pub struct SmallPowerUpCounterNumber;
 
 #[derive(Component)]
+pub struct SmallPowerUpBar;
+
+#[derive(Component)]
 pub struct BigPowerUpCounterNumber;
+
+#[derive(Component)]
+pub struct BigPowerUpBar;
 
 pub struct PaintFont(Handle<Font>);
 
@@ -236,13 +242,34 @@ fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
 							.insert(SmallPowerUpCounterNumber);
 					});
 
+
+					//SMALL POWER UP TIMER	
 					parent
 					.spawn_bundle(NodeBundle {
+						style: Style {
+							size: Size::new(Val::Px(150.0), Val::Px(10.0)),
+							justify_content: JustifyContent::FlexStart,
+							..Default::default()
+						},
+						color: Color::Rgba { red: 1.0, green: 1.0, blue: 1.0, alpha: 0.3 }.into(),
 						..Default::default()
-						// TODO: make the rest of the inventory ui:
-						//	-make the 2 bars for powerup cooldown
-						//  -change some text for images
+						
+					})
+					.insert(Name::new("SmallPowerUpBarContainer"))
+					.with_children(|parent| {
+						parent
+						.spawn_bundle(NodeBundle {
+							style: Style {
+								size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+								..Default::default()
+							},
+							color: Color::WHITE.into(),
+							..Default::default()
+						})
+						.insert(Name::new("SmallPowerUpBar"))
+						.insert(SmallPowerUpBar);
 					});
+					
 
 					//BIG POWER UP COUNTER
 					parent
@@ -281,6 +308,33 @@ fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
 							)
 							.insert(Name::new("BigPowerUpCounterNumber"))
 							.insert(BigPowerUpCounterNumber);
+					});
+
+					//BIG POWER UP TIMER
+					parent
+					.spawn_bundle(NodeBundle {
+						style: Style {
+							size: Size::new(Val::Px(150.0), Val::Px(10.0)),
+							justify_content: JustifyContent::FlexStart,
+							..Default::default()
+						},
+						color:  Color::Rgba { red: 1.0, green: 1.0, blue: 1.0, alpha: 0.3 }.into(),
+						..Default::default()
+						
+					})
+					.insert(Name::new("BigPowerUpBarContainer"))
+					.with_children(|parent| {
+						parent
+						.spawn_bundle(NodeBundle {
+							style: Style {
+								size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+								..Default::default()
+							},
+							color: Color::WHITE.into(),
+							..Default::default()
+						})
+						.insert(Name::new("BigPowerUpBar"))
+						.insert(BigPowerUpBar);
 					});
 					
 					
@@ -374,12 +428,14 @@ fn camera_follow(
 }
 
 fn update_ui(
-	player_query: Query<(&Health, &Inventory), With<Player>>,
-	mut health_bar_query: Query<&mut Style, With<HealthBar>>,
+	player_query: Query<(&Health, &Inventory, &SmallPowerupCooldown, &BigPowerupCooldown), With<Player>>,
+	mut health_bar_query: Query<&mut Style, (With<HealthBar>, Without<SmallPowerUpBar>, Without<BigPowerUpBar>)>,
 	mut small_powerup_counter_query: Query<&mut Text, (With<SmallPowerUpCounterNumber>, Without<BigPowerUpCounterNumber>)>,
-	mut big_powerup_counter_query: Query<&mut Text, (With<BigPowerUpCounterNumber>, Without<SmallPowerUpCounterNumber>)>
+	mut small_powerup_bar_query: Query<&mut Style, (With<SmallPowerUpBar>, Without<BigPowerUpBar>, Without<HealthBar>)>,
+	mut big_powerup_counter_query: Query<&mut Text, (With<BigPowerUpCounterNumber>, Without<SmallPowerUpCounterNumber>)>,
+	mut big_powerup_bar_query: Query<&mut Style, (With<BigPowerUpBar>, Without<HealthBar>, Without<SmallPowerUpBar>)>,
 ) {
-	let (player_health, inventory) = player_query.single();
+	let (player_health, inventory, small_cooldown, big_cooldown) = player_query.single();
 	let mut health_bar_style = health_bar_query.single_mut();
 
 	health_bar_style.size.width = Val::Percent(player_health.get_health() / player_health.get_max_health() * 100.0);
@@ -389,6 +445,12 @@ fn update_ui(
 
 	let mut big_powerup_counter = big_powerup_counter_query.single_mut();
 	big_powerup_counter.sections[0].value = inventory.get_big_powerup().to_string();
+
+	let mut small_powerup_bar = small_powerup_bar_query.single_mut();
+	small_powerup_bar.size.width = Val::Percent(small_cooldown.0.elapsed_secs() / SMALL_POWERUP_DURATION * 100.0);
+
+	let mut big_powerup_bar = big_powerup_bar_query.single_mut();
+	big_powerup_bar.size.width = Val::Percent(big_cooldown.0.elapsed_secs() / BIG_POWERUP_DURATION * 100.0);
 }
 
 fn damage_yourself(
@@ -496,11 +558,11 @@ fn player_shoot(
 pub struct SmallPowerupCooldown(Timer);
 
 fn use_small_powerup(
-	mut player_query: Query<(&mut Health, &mut Inventory, &mut SmallPowerupCooldown), With<Player>>,
+	mut player_query: Query<(&mut Health, &mut Inventory, &mut Movement, &mut SmallPowerupCooldown), With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
 ) {
-	let (mut player_health, mut player_inventory, mut cooldown) = player_query.single_mut();
+	let (mut player_health, mut player_inventory, mut movement, mut cooldown) = player_query.single_mut();
 
 	cooldown.0.tick(time.delta());
 
@@ -512,6 +574,7 @@ fn use_small_powerup(
 		if player_inventory.subtract_small_powerup(1) {
 			// add effects here!!
 			player_health.heal(player_inventory.get_small_powerup_health());
+			movement.speed *= 2.0;
 			// Reset the cooldown timer
 			cooldown.0.reset();
 		}
@@ -519,6 +582,7 @@ fn use_small_powerup(
 
 	if cooldown.0.just_finished() {
 		// remove the effects here
+		movement.speed /= 2.0;
 	}
 }
 
@@ -526,7 +590,7 @@ fn use_small_powerup(
 pub struct BigPowerupCooldown(Timer);
 
 fn use_big_powerup(
-	mut player_query: Query<(&mut Health, &mut Inventory, &mut Movement, &mut SmallPowerupCooldown), With<Player>>,
+	mut player_query: Query<(&mut Health, &mut Inventory, &mut Movement, &mut BigPowerupCooldown), With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
 ) {
@@ -541,7 +605,7 @@ fn use_big_powerup(
 	if keyboard.just_pressed(KeyCode::R) {
 		if player_inventory.subtract_big_powerup(1) {
 			// add effects here!!
-			player_health.heal(player_inventory.get_big_powerup_health());
+			player_health.set_health(5f32);
 			movement.speed *= 2.0;
 			// Reset the cooldown timer
 			cooldown.0.reset();

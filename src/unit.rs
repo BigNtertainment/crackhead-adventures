@@ -43,6 +43,10 @@ impl Health {
 	pub fn get_max_health(&self) -> f32 {
 		self.max_health
 	}
+
+	pub fn set_health(&mut self, h:f32) {
+		self.health = h;
+	}
 }
 
 
