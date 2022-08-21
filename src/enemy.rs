@@ -128,6 +128,12 @@ fn update_enemy_ai(
 					current: 0
 				};
 
+				transform.rotation = Quat::from_rotation_z(
+					Vec2::Y.angle_between(
+						(player_position - transform.translation).truncate()
+					)
+				);
+
 				// Don't shoot immediately
 				enemy.shock_timer.tick(time.delta());
 
@@ -160,6 +166,10 @@ fn update_enemy_ai(
 			let direction = movement_vector.normalize_or_zero();
 
 			transform.translation += (direction * TILE_SIZE * movement.speed * time.delta_seconds()).extend(0.0);
+
+			transform.rotation = Quat::from_rotation_z(
+				Vec2::Y.angle_between(direction)
+			);
 		}
 	}
 }

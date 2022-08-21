@@ -171,6 +171,7 @@ fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec
 			Ok(Some(wall))
 		},
 		'O' => {
+			register_to_nav_mesh();
 			Ok(Some(commands.spawn_bundle(PlayerBundle::at(position)).id()))
 		},
 		'E' => {

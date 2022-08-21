@@ -286,7 +286,7 @@ fn player_aim(
 
 		let target = target - window_size / 2.0;
 
-		let angle = (Vec2::Y).angle_between(target);
+		let angle = Vec2::Y.angle_between(target);
 		player_transform.rotation = Quat::from_rotation_z(angle);
 	}
 }
@@ -322,7 +322,7 @@ fn player_shoot(
 	}
 
 	let window_size = Vec2::new(WIDTH, HEIGHT);
-	
+
 	if let Some(target) = window.iter().next().unwrap().cursor_position() {
 		let target = target * window.iter().next().unwrap().scale_factor() as f32;
 		let target = target - window_size / 2.0;
