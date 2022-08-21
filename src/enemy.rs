@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_rapier2d::prelude::*;
 
 use crate::TILE_SIZE;
 use crate::tilemap::Tile;
@@ -14,6 +15,7 @@ pub struct EnemyBundle {
 	name: Name,
 	enemy: Enemy,
 	movement: Movement,
+	rapier_collider: Collider,
 }
 
 impl Default for EnemyBundle {
@@ -29,7 +31,8 @@ impl Default for EnemyBundle {
 			},
 			name: Name::new("Enemy"),
 			enemy: Enemy,
-			movement: Movement { speed: 10.0 }
+			movement: Movement { speed: 10.0 },
+			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0),
 		}
 	}
 }

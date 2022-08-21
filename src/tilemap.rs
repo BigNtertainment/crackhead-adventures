@@ -1,7 +1,9 @@
 use std::fs::File;
 use std::io::{prelude::*, BufReader};
+use rand::seq::SliceRandom;
 
 use bevy::prelude::*;
+use bevy_rapier2d::prelude::*;
 
 use crate::{TILE_SIZE, GameState};
 use crate::enemy::EnemyBundle;
@@ -18,7 +20,11 @@ pub struct TileMapPlugin;
 impl Plugin for TileMapPlugin {
 	fn build(&self, app: &mut App) {
 		app
-			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(load_level))
+			.add_startup_system(load_textures)
+			.add_system_set(
+				SystemSet::on_enter(GameState::Game)
+					.with_system(load_level)
+			)
 			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_level));
 	}
 }
@@ -28,25 +34,27 @@ pub trait Tile {
 }
 
 // Tiles
+#[derive(Component)]
+struct Wall;
+
 #[derive(Bundle)]
 struct WallBundle {
 	#[bundle]
 	sprite_bundle: SpriteBundle,
-	collider: TileCollider
+	collider: TileCollider,
+	rapier_collider: Collider,
+	wall: Wall
 }
 
 impl Default for WallBundle {
 	fn default() -> Self {
 		Self {
 			sprite_bundle: SpriteBundle {
-				sprite: Sprite {
-					color: Color::rgb(0.75, 0.25, 0.25),
-					custom_size: Some(Vec2::splat(TILE_SIZE)),
-					..Default::default()
-				},
 				..Default::default()
 			},
-			collider: TileCollider
+			collider: TileCollider,
+			wall: Wall,
+			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0),
 		}
 	}
 }
@@ -55,11 +63,6 @@ impl Tile for WallBundle {
 	fn at(position: Vec2) -> Self {
 		Self {
 			sprite_bundle: SpriteBundle {
-				sprite: Sprite {
-					color: Color::rgb(66.0 / 255.0, 135.0 / 255.0, 245.0 / 255.0),
-					custom_size: Some(Vec2::splat(TILE_SIZE)),
-					..Default::default()
-				},
 				transform: Transform::from_xyz(position.x, position.y, 0.0),
 				..Default::default()
 			},
@@ -68,7 +71,22 @@ impl Tile for WallBundle {
 	}
 }
 
-fn load_level(mut commands: Commands) {
+struct Textures {
+	wall_textures: Vec<Handle<Image>>
+}
+
+fn load_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
+	let mut wall_textures = Vec::new();
+
+	wall_textures.push(asset_server.load("brick_1.png"));
+	wall_textures.push(asset_server.load("brick_2.png"));
+
+	commands.insert_resource(Textures {
+		wall_textures
+	});
+}
+
+fn load_level(mut commands: Commands, textures: Res<Textures>) {
 	let file = File::open("assets/level.txt").expect("Level file (level.txt) not found!");
 
 	let mut tiles = Vec::new();
@@ -79,7 +97,8 @@ fn load_level(mut commands: Commands) {
 				let tile = spawn_tile(
 					&mut commands,
 					char,
-					Vec2::new(x as f32, -(y as f32))
+					Vec2::new(x as f32, -(y as f32)),
+					&textures
 				);
 
 				match tile {
@@ -109,6 +128,8 @@ fn load_level(mut commands: Commands) {
 		.insert(GlobalTransform::default())
 		.insert(Tilemap)
 		.push_children(&tiles);
+
+	println!("c");
 }
 
 fn drop_level(mut commands: Commands, tilemap: Query<Entity, With<Tilemap>>) {
@@ -120,12 +141,17 @@ enum TileSpawnError {
 	UnknownChar(char)
 }
 
-fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec2) -> Result<Option<Entity>, TileSpawnError> {
+fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec2, textures: &Res<Textures>) -> Result<Option<Entity>, TileSpawnError> {
 	let position = position_on_tilemap * TILE_SIZE;
 
 	return match tile_char {
 		'#' => {
-			Ok(Some(commands.spawn_bundle(WallBundle::at(position)).id()))
+			let wall = commands
+				.spawn_bundle(WallBundle::at(position))
+				.insert(textures.wall_textures.choose(&mut rand::thread_rng()).expect("There are no wall textures!").clone())
+				.id();
+
+			Ok(Some(wall))
 		},
 		'O' => {
 			Ok(Some(commands.spawn_bundle(PlayerBundle::at(position)).id()))

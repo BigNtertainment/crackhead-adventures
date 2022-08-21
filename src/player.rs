@@ -1,13 +1,23 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 use bevy::sprite::collide_aabb::{collide, Collision};
 
+use bevy_rapier2d::prelude::*;
+
+use bevy_kira_audio::prelude::*;
+
 use rand::prelude::*;
 
+use crate::enemy::Enemy;
 use crate::{TILE_SIZE, GameState};
 use crate::HEIGHT;
 use crate::WIDTH;
 use crate::tilemap::{TileCollider, Tile};
 use crate::unit::{Movement, Health, Inventory};
+
+pub const WEAPON_RANGE: f32 = 400.0;
+pub const WEAPON_COOLDOWN: f32 = 0.5;
 
 #[derive(Component)]
 pub struct Player;
@@ -25,6 +35,8 @@ impl Plugin for PlayerPlugin {
 		app
 			.register_type::<Movement>()
 
+			.add_startup_system(load_shot_sound)
+
 			.add_system_set(
 				SystemSet::on_enter(GameState::Game)
 					.with_system(ui_setup)
@@ -39,6 +51,8 @@ impl Plugin for PlayerPlugin {
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
 					.with_system(camera_follow.after("player_movement"))
+					.with_system(player_aim.label("player_aim").after("player_movement"))
+					.with_system(player_shoot.after("player_aim"))
 					.with_system(damage_yourself)
 					.with_system(update_ui)
 					.with_system(player_aim)
@@ -56,6 +70,7 @@ pub struct PlayerBundle {
 	player: Player,
 	movement: Movement,
 	health: Health,
+	shoot_cooldown: ShootCooldown,
 	inventory: Inventory,
 }
 
@@ -74,6 +89,7 @@ impl Default for PlayerBundle {
 			player: Player,
 			movement: Movement { speed: 10.0 },
 			health: Health::new(100.0),
+			shoot_cooldown: ShootCooldown(Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)),
 			inventory: Inventory::new(20.0, -50.0),
 		}
 	}
@@ -263,19 +279,83 @@ fn damage_yourself(
 }
 
 fn player_aim(
-	mut player_query: Query<&mut Transform, (With<Player>, Without<Camera2d>)>,
+	mut player_query: Query<&mut Transform, With<Player>>,
 	window: Res<Windows>
 ) {
 	let mut player_transform = player_query.single_mut();
 	
 	if let Some(target) = window.iter().next().unwrap().cursor_position(){
 		let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
-		// gpu coords, from 0 to 1
-		let ndc = (target / window_size) * 2.0 - Vec2::ONE;
-		let angle = (Vec2::Y).angle_between(ndc);
+
+		let target = target - window_size / 2.0;
+
+		let angle = (Vec2::Y).angle_between(target);
 		player_transform.rotation = Quat::from_rotation_z(angle);
 	}
+}
 
+fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
+	let sound = asset_server.load("shot.wav");
+
+	commands.insert_resource(ShotSound(sound));
+}
+
+struct ShotSound(Handle<AudioSource>);
+
+#[derive(Component)]
+pub struct ShootCooldown(Timer);
+
+fn player_shoot(
+	mut commands: Commands,
+	mut player_query: Query<(&Transform, &mut ShootCooldown), With<Player>>,
+	enemies_query: Query<Entity, With<Enemy>>,
+	rapier_context: Res<RapierContext>,
+	buttons: Res<Input<MouseButton>>,
+	time: Res<Time>,
+	window: Res<Windows>,
+	audio: Res<Audio>,
+	shot_sound: Res<ShotSound>
+) {
+	let (player_transform, mut cooldown) = player_query.single_mut();
+
+	cooldown.0.tick(time.delta());
+
+	if !cooldown.0.finished() {
+		return;
+	}
+
+	let window_size = Vec2::new(WIDTH, HEIGHT);
+	
+	if let Some(target) = window.iter().next().unwrap().cursor_position() {
+		let target = target * window.iter().next().unwrap().scale_factor() as f32;
+		let target = target - window_size / 2.0;
+
+		let ray_origin = player_transform.translation.truncate();
+		let ray_direction = target.normalize();
+		let max_time_of_impact = WEAPON_RANGE;
+		let solid = true;
+		let filter = QueryFilter::default();
+
+		if buttons.just_pressed(MouseButton::Left) {	
+			if let Some((entity, _toi))  = rapier_context.cast_ray(
+				ray_origin, ray_direction, max_time_of_impact, solid, filter
+			) {
+				for enemy in enemies_query.iter() {
+					if entity.id() == enemy.id() {
+						commands.entity(entity).despawn_recursive();
+					}
+				}
+				
+			}
+
+			audio
+				.play(shot_sound.0.clone())
+				.with_volume(0.15);
+
+			// Reset the cooldown timer
+			cooldown.0.reset();
+		}
+	}
 }
 
 fn use_small_powerup(
