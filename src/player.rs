@@ -18,7 +18,7 @@ use crate::{GameState, TILE_SIZE};
 
 mod ui;
 
-use ui::{ui_setup, drop_ui, update_ui, load_font};
+use ui::{drop_ui, load_font, ui_setup, update_ui};
 
 pub const WEAPON_RANGE: f32 = 400.0;
 pub const WEAPON_COOLDOWN: f32 = 0.5;
@@ -81,14 +81,14 @@ impl Default for PlayerBundle {
 			movement: Movement { speed: 10.0 },
 			health: Health::new(100.0),
 			shooting: Shooting {
-				cooldown: Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)
+				cooldown: Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false),
 			},
 			inventory: Inventory::new(),
 			effect: EffectData {
 				effect: None,
 				duration: Timer::from_seconds(0.0, false),
 			},
-			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0)
+			rapier_collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
 		}
 	}
 }
@@ -113,12 +113,13 @@ impl Tile for PlayerBundle {
 }
 
 fn player_movement(
-	mut player_query: Query<(&Movement, &mut Transform, &Sprite), With<Player>>,
+	mut player_query: Query<(Entity, &Movement, &mut Transform, &Sprite, &Collider), With<Player>>,
 	wall_query: Query<&Transform, (With<TileCollider>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
+	rapier_context: Res<RapierContext>,
 ) {
-	let (movement, mut transform, sprite) = player_query
+	let (player_entity, movement, mut transform, sprite, rapier_collider) = player_query
 		.iter_mut()
 		.next()
 		.expect("Player not found in the scene!");
@@ -142,48 +143,83 @@ fn player_movement(
 	}
 
 	if direction.length() != 0.0 {
-		// Make it work for even bigger speeds using raycasts
+		let shape = rapier_collider;
+		let position = transform.translation.truncate();
+		let rotation = 0.0; // transform.rotation.z;
+		let direction = direction.normalize().truncate();
+		let max_time_of_impact = movement.speed * TILE_SIZE * time.delta_seconds();
+		let filter = QueryFilter::default().exclude_collider(player_entity);
 
-		let mut target = transform.translation
-			+ direction.normalize() * movement.speed * TILE_SIZE * time.delta_seconds();
+		let movement_vector = Vec2::new(
+			if let Some((_, hit)) = rapier_context.cast_shape(
+				position,
+				rotation,
+				direction * Vec2::new(1.0, 0.0),
+				&shape,
+				max_time_of_impact,
+				filter,
+			) {
+				direction * (hit.toi - 0.1)
+			} else {
+				direction * (max_time_of_impact - 0.1)
+			}.x,
 
-		let player_size = if let Some(player_size) = sprite.custom_size {
-			Vec2::new(
-				player_size.x * transform.scale.x,
-				player_size.y * transform.scale.y,
-			)
-		} else {
-			Vec2::new(transform.scale.x, transform.scale.y)
-		};
+			if let Some((_, hit)) = rapier_context.cast_shape(
+				position,
+				rotation,
+				direction * Vec2::new(0.0, 1.0),
+				&shape,
+				max_time_of_impact,
+				filter,
+			) {
+				direction * (hit.toi - 0.05)
+			} else {
+				direction * (max_time_of_impact - 0.05)
+			}.y,
+		);
 
-		for wall_transform in wall_query.iter() {
-			let collision = collide(
-				target,
-				player_size,
-				wall_transform.translation,
-				Vec2::splat(TILE_SIZE),
-			);
+		transform.translation += movement_vector.extend(0.0);
 
-			if let Some(collision) = collision {
-				match collision {
-					Collision::Bottom => {
-						target.y = wall_transform.translation.y - TILE_SIZE;
-					}
-					Collision::Top => {
-						target.y = wall_transform.translation.y + TILE_SIZE;
-					}
-					Collision::Left => {
-						target.x = wall_transform.translation.x - TILE_SIZE;
-					}
-					Collision::Right => {
-						target.x = wall_transform.translation.x + TILE_SIZE;
-					}
-					Collision::Inside => { /* what */ }
-				};
-			}
-		}
+		// let mut target = transform.translation
+		// 	+ direction.normalize() * movement.speed * TILE_SIZE * time.delta_seconds();
 
-		transform.translation = target;
+		// let player_size = if let Some(player_size) = sprite.custom_size {
+		// 	Vec2::new(
+		// 		player_size.x * transform.scale.x,
+		// 		player_size.y * transform.scale.y,
+		// 	)
+		// } else {
+		// 	Vec2::new(transform.scale.x, transform.scale.y)
+		// };
+
+		// for wall_transform in wall_query.iter() {
+		// 	let collision = collide(
+		// 		target,
+		// 		player_size,
+		// 		wall_transform.translation,
+		// 		Vec2::splat(TILE_SIZE),
+		// 	);
+
+		// 	if let Some(collision) = collision {
+		// 		match collision {
+		// 			Collision::Bottom => {
+		// 				target.y = wall_transform.translation.y - TILE_SIZE;
+		// 			}
+		// 			Collision::Top => {
+		// 				target.y = wall_transform.translation.y + TILE_SIZE;
+		// 			}
+		// 			Collision::Left => {
+		// 				target.x = wall_transform.translation.x - TILE_SIZE;
+		// 			}
+		// 			Collision::Right => {
+		// 				target.x = wall_transform.translation.x + TILE_SIZE;
+		// 			}
+		// 			Collision::Inside => { /* what */ }
+		// 		};
+		// 	}
+		// }
+
+		// transform.translation = target;
 	}
 }
 
@@ -263,8 +299,7 @@ fn player_shoot(
 		let ray_direction = target.normalize();
 		let max_time_of_impact = WEAPON_RANGE;
 		let solid = true;
-		let filter = QueryFilter::default()
-			.exclude_collider(player_entity);
+		let filter = QueryFilter::default().exclude_collider(player_entity);
 
 		if buttons.just_pressed(MouseButton::Left) {
 			if let Some((entity, _toi)) = rapier_context.cast_ray(
@@ -279,7 +314,6 @@ fn player_shoot(
 						commands.entity(entity).despawn_recursive();
 					}
 				}
-				
 			}
 
 			audio.play(shot_sound.0.clone()).with_volume(0.15);
