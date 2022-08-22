@@ -46,6 +46,7 @@ impl Plugin for PlayerPlugin {
 					.with_system(damage_yourself)
 					.with_system(update_ui)
 					.with_system(pick_up_cocaine)
+					.with_system(craft_magic_dust)
 					.with_system(use_powerup),
 			);
 	}
@@ -395,6 +396,20 @@ fn pick_up_cocaine(
 		if (player_transform.translation.truncate() - cocaine_transform.translation.truncate()).length() <= TILE_SIZE / 2.0 {
 			player_inventory.add_small_powerup(1);
 			commands.entity(cocaine).despawn_recursive();
+		}
+	}
+}
+
+fn craft_magic_dust(
+	mut player_query: Query<&mut Inventory, With<Player>>,
+	keyboard: Res<Input<KeyCode>>,
+) {
+	let mut inventory = player_query.single_mut();
+
+	// Press T to craft magic dust
+	if keyboard.just_pressed(KeyCode::T) {
+		if inventory.subtract_small_powerup(3) {
+			inventory.add_big_powerup(1);
 		}
 	}
 }
