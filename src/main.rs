@@ -42,7 +42,7 @@ fn main() {
 
         // Resources
         .insert_resource(WindowDescriptor {
-            title: "Give me some of your magic dust or I will f**king murder you".to_string(),
+            title: "Crackhead Adventures".to_string(),
             width: WIDTH,
             height: HEIGHT,
             resizable: false,

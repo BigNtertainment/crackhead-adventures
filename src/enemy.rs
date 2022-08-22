@@ -1,3 +1,4 @@
+use std::path::PathBuf;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -7,7 +8,7 @@ use navmesh::NavVec3;
 
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
-use crate::tilemap::Tile;
+use crate::tilemap::{Tile, TexturesMemo};
 use crate::unit::{Health, Movement, Shooting};
 use crate::{GameState, TILE_SIZE};
 
@@ -18,8 +19,14 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_startup_system(load_shot_sound)
-			.add_system_set(SystemSet::on_update(GameState::Game).with_system(update_enemy_ai));
+		app
+			.add_startup_system(load_shot_sound)
+			.add_startup_system(load_enemy_textures)
+			.add_system_set(
+				SystemSet::on_update(GameState::Game)
+					.with_system(update_enemy_ai)
+					.with_system(update_enemy_texture)
+			);
 	}
 }
 
@@ -91,6 +98,18 @@ fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 struct ShotSound(Handle<AudioSource>);
 
+fn load_enemy_textures(mut commands: Commands, mut textures: ResMut<TexturesMemo>, asset_server: Res<AssetServer>) {
+	commands.insert_resource(EnemyTextures {
+		idle: textures.get(&PathBuf::from("img/enemy_idle.png"), &asset_server),
+		active: textures.get(&PathBuf::from("img/enemy.png"), &asset_server),
+	});
+}
+
+struct EnemyTextures {
+	idle: Handle<Image>,
+	active: Handle<Image>,
+}
+
 enum EnemyAiState {
 	Idle,
 	Alert {
@@ -105,7 +124,6 @@ fn update_enemy_ai(
 		&mut Transform,
 		&Movement,
 		&mut Shooting,
-		&Collider,
 		&mut Enemy,
 	)>,
 	mut player: Query<(Entity, &Transform, &mut Health), (With<Player>, Without<Enemy>)>,
@@ -120,7 +138,7 @@ fn update_enemy_ai(
 
 	let player_position = player_transform.translation;
 
-	for (entity, mut transform, movement, mut shooting, rapier_collider, mut enemy) in
+	for (entity, mut transform, movement, mut shooting, mut enemy) in
 		enemies.iter_mut()
 	{
 		shooting.cooldown.tick(time.delta());
@@ -199,5 +217,17 @@ fn update_enemy_ai(
 			transform.translation += (direction * TILE_SIZE * movement.speed * time.delta_seconds()).extend(0.0);
 			transform.rotation = Quat::from_rotation_z(Vec2::Y.angle_between(direction));
 		}
+	}
+}
+
+fn update_enemy_texture(
+	mut enemy_query: Query<(&mut Handle<Image>, &Enemy)>,
+	textures: Res<EnemyTextures>,
+) {
+	for (mut enemy_texture, enemy) in enemy_query.iter_mut() {
+		enemy_texture.clone_from(match enemy.ai_state {
+			EnemyAiState::Idle => &textures.idle,
+			EnemyAiState::Alert { path: _, current: _ } => &textures.active,
+		});
 	}
 }

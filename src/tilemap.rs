@@ -2,7 +2,6 @@ use bevy::utils::HashMap;
 use std::path::PathBuf;
 
 use bevy::prelude::*;
-use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
 use tiled::{Chunk, LayerType, Loader, TileLayer};
 
@@ -123,7 +122,7 @@ impl Tile for FloorBundle {
 	}
 }
 
-struct TexturesMemo {
+pub struct TexturesMemo {
 	memoized: HashMap<PathBuf, Handle<Image>>,
 }
 
@@ -302,8 +301,4 @@ fn load_level(
 fn drop_level(mut commands: Commands, tilemap: Query<Entity, With<Tilemap>>) {
 	let tilemap = tilemap.single();
 	commands.entity(tilemap).despawn_recursive();
-}
-
-fn draw_nav_mesh(nav_mesh: ResMut<EnemyNavMesh>, mut lines: ResMut<DebugLines>) {
-	nav_mesh.draw(&mut lines);
 }

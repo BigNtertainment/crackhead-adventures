@@ -8,7 +8,7 @@
   <image width="50" height="50" source="../img/concrete.png"/>
  </tile>
  <tile id="5">
-  <image width="50" height="50" source="../img/enemy.png"/>
+  <image width="50" height="50" source="../img/enemy_idle.png"/>
  </tile>
  <tile id="6">
   <image width="50" height="50" source="../img/pillar.png"/>
