@@ -1,9 +1,9 @@
-use std::fs::File;
-use std::io::{prelude::*, BufReader};
-use rand::seq::SliceRandom;
+use std::path::PathBuf;
+use bevy::utils::HashMap;
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
+use tiled::{Loader, TileLayer, LayerType, Chunk};
 
 use crate::{TILE_SIZE, GameState};
 use crate::enemy::EnemyBundle;
@@ -22,8 +22,10 @@ impl Plugin for TileMapPlugin {
 	fn build(&self, app: &mut App) {
 		app
 			.insert_resource(EnemyNavMesh::new())
+			.insert_resource(TexturesMemo {
+				memoized: HashMap::new()
+			})
 
-			.add_startup_system(load_textures)
 			.add_system_set(
 				SystemSet::on_enter(GameState::Game)
 					.with_system(load_level.label("load_level"))
@@ -37,7 +39,7 @@ impl Plugin for TileMapPlugin {
 }
 
 pub trait Tile {
-	fn at(position: Vec2) -> Self;
+	fn spawn(position: Vec2, texture: Handle<Image>) -> Self;
 }
 
 // Tiles
@@ -50,7 +52,8 @@ struct WallBundle {
 	sprite_bundle: SpriteBundle,
 	collider: TileCollider,
 	rapier_collider: Collider,
-	wall: Wall
+	wall: Wall,
+	name: Name
 }
 
 impl Default for WallBundle {
@@ -62,15 +65,17 @@ impl Default for WallBundle {
 			collider: TileCollider,
 			wall: Wall,
 			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0),
+			name: Name::new("Wall")
 		}
 	}
 }
 
 impl Tile for WallBundle {
-	fn at(position: Vec2) -> Self {
+	fn spawn(position: Vec2, texture: Handle<Image>) -> Self {
 		Self {
 			sprite_bundle: SpriteBundle {
 				transform: Transform::from_xyz(position.x, position.y, 0.0),
+				texture,
 				..Default::default()
 			},
 			..Default::default()
@@ -78,64 +83,156 @@ impl Tile for WallBundle {
 	}
 }
 
-struct Textures {
-	wall_textures: Vec<Handle<Image>>
+#[derive(Bundle)]
+struct FloorBundle {
+	#[bundle]
+	sprite_bundle: SpriteBundle,
+	name: Name,
 }
 
-fn load_textures(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let mut wall_textures = Vec::new();
-
-	wall_textures.push(asset_server.load("brick_1.png"));
-	wall_textures.push(asset_server.load("brick_2.png"));
-
-	commands.insert_resource(Textures {
-		wall_textures
-	});
+impl Default for FloorBundle {
+	fn default() -> Self {
+		Self {
+			sprite_bundle: Default::default(),
+			name: Name::new("Floor")
+		}
+	}
 }
 
-fn load_level(mut commands: Commands, textures: Res<Textures>, mut nav_mesh: ResMut<EnemyNavMesh>) {
-	let file = File::open("assets/level.txt").expect("Level file (level.txt) not found!");
+impl Tile for FloorBundle {
+	fn spawn(position: Vec2, texture: Handle<Image>) -> Self {
+		Self {
+			sprite_bundle: SpriteBundle {
+				transform: Transform::from_xyz(position.x, position.y, 0.0),
+				texture,
+				..Default::default()
+			},
+			..Default::default()
+		}
+	}
+}
 
-	let mut tiles = Vec::new();
+struct TexturesMemo {
+	memoized: HashMap<PathBuf, Handle<Image>>,
+}
 
-	for (y, line) in BufReader::new(file).lines().enumerate() {
-		if let Ok(line) = line {
-			for (x, char) in line.chars().enumerate() {
-				let tile = spawn_tile(
-					&mut commands,
-					char,
-					Vec2::new(x as f32, -(y as f32)),
-					&textures,
-					&mut nav_mesh
-				);
+impl TexturesMemo {
+	pub fn get(&mut self, path: &PathBuf, asset_server: &Res<AssetServer>) -> Handle<Image> {
+		if let Some(handle) = self.memoized.get(path) {
+			handle.clone()
+		} else {
+			let handle = asset_server.load(path.to_str().unwrap());
+			self.memoized.insert(path.clone(), handle.clone());
+			handle
+		}
+	}
+}
 
-				match tile {
-					Ok(tile) => {
-						if let Some(tile) = tile {
-							tiles.push(tile);
-						}
+fn load_level(
+	mut commands: Commands,
+	asset_server: Res<AssetServer>,
+	mut textures: ResMut<TexturesMemo>,
+	mut nav_mesh: ResMut<EnemyNavMesh>
+) {
+	let mut loader = Loader::new();
+	let map = loader.load_tmx_map("assets/level/level.tmx").unwrap();
+    let tileset = loader.load_tsx_tileset("assets/level/tileset.tsx").unwrap();
+	let layers = map.layers();
+
+	for (layer_num, layer) in layers.enumerate() {
+		match layer.layer_type() {
+			LayerType::TileLayer(layer) => {
+				match layer {
+					TileLayer::Finite(_) => {
+						todo!("Implement this if there's time left.");
 					},
-					Err(err) => {
-						match err {
-							TileSpawnError::UnknownChar(char) => {
-								panic!("Unknown char in the level file on position ({}, {}): {}", x, y, char);
+					TileLayer::Infinite(layer) => {
+						for (chunk_pos, chunk) in layer.chunks() {
+							for x in 0..Chunk::WIDTH as i32 {
+								for y in 0..Chunk::HEIGHT as i32 {
+									if let Some(tile) = chunk.get_tile(x, y) {
+										let tile_pos = Vec2::new(
+											(chunk_pos.0 * Chunk::WIDTH as i32 + x) as f32,
+											(chunk_pos.1 * Chunk::HEIGHT as i32 + y) as f32,
+										) * TILE_SIZE;
+
+										let mut register_nav_mesh = || {
+											nav_mesh.insert_square(
+												tile_pos + Vec2::new(map.tile_width as f32, map.tile_height as f32),
+												tile_pos + Vec2::new(-(map.tile_width as f32), map.tile_height as f32),
+												tile_pos + Vec2::new(-(map.tile_width as f32), -(map.tile_height as f32)),
+												tile_pos + Vec2::new(map.tile_width as f32, -(map.tile_height as f32)),
+											);
+										};
+
+										let tile = tileset.get_tile(tile.id()).expect("what");
+
+										let image_source =
+											tile.image.as_ref().unwrap()
+											.source.strip_prefix("assets/level\\..")
+											.expect("what").to_path_buf();
+
+										match layer_num {
+											0 => {
+												// Floor layer
+												register_nav_mesh();
+
+												commands
+													.spawn_bundle(FloorBundle::spawn(
+														tile_pos, 
+														textures.get(
+															&image_source,
+															&asset_server
+														)
+													));
+											},
+											1 => {
+												// Wall layer
+												commands
+													.spawn_bundle(WallBundle::spawn(
+														tile_pos, 
+														textures.get(
+															&image_source,
+															&asset_server
+														)
+													));
+											},
+											2 => {
+												// Player layer
+												commands
+													.spawn_bundle(PlayerBundle::spawn(
+														tile_pos, 
+														textures.get(
+															&image_source,
+															&asset_server
+														)
+													));
+											},
+											3 => {
+												// Enemy layer
+												commands
+												.spawn_bundle(EnemyBundle::spawn(
+													tile_pos, 
+													textures.get(
+														&image_source,
+														&asset_server
+													)
+												));
+											},
+											_ => {
+												panic!("Too much layers in the level file");
+											}
+										}
+									}
+								}
 							}
 						}
 					}
-				};
-			}
+				}
+			},
+			_ => panic!("The level has a different kind of layer than a tile layer!")
 		}
 	}
-
-	commands
-		.spawn()
-		.insert(Name::new("Tilemap"))
-		.insert(Visibility::default())
-		.insert(ComputedVisibility::default())
-		.insert(Transform::default())
-		.insert(GlobalTransform::default())
-		.insert(Tilemap)
-		.push_children(&tiles);
 
 	nav_mesh.bake();
 }
@@ -143,47 +240,4 @@ fn load_level(mut commands: Commands, textures: Res<Textures>, mut nav_mesh: Res
 fn drop_level(mut commands: Commands, tilemap: Query<Entity, With<Tilemap>>) {
 	let tilemap = tilemap.single();
 	commands.entity(tilemap).despawn_recursive();
-}
-
-enum TileSpawnError {
-	UnknownChar(char)
-}
-
-fn spawn_tile(commands: &mut Commands, tile_char: char, position_on_tilemap: Vec2, textures: &Res<Textures>, nav_mesh: &mut ResMut<EnemyNavMesh>) -> Result<Option<Entity>, TileSpawnError> {
-	let position = position_on_tilemap * TILE_SIZE;
-
-	let mut register_to_nav_mesh = || {
-		nav_mesh.insert_square(
-			position + Vec2::new(TILE_SIZE, TILE_SIZE) / 2.0,
-			position + Vec2::new(TILE_SIZE, -TILE_SIZE) / 2.0,
-			position + Vec2::new(-TILE_SIZE, -TILE_SIZE) / 2.0,
-			position + Vec2::new(-TILE_SIZE, TILE_SIZE) / 2.0,
-		);
-	};
-
-	return match tile_char {
-		'#' => {
-			let wall = commands
-				.spawn_bundle(WallBundle::at(position))
-				.insert(textures.wall_textures.choose(&mut rand::thread_rng()).expect("There are no wall textures!").clone())
-				.id();
-
-			Ok(Some(wall))
-		},
-		'O' => {
-			register_to_nav_mesh();
-			Ok(Some(commands.spawn_bundle(PlayerBundle::at(position)).id()))
-		},
-		'E' => {
-			register_to_nav_mesh();
-			Ok(Some(commands.spawn_bundle(EnemyBundle::at(position)).id()))
-		},
-		' ' => {
-			register_to_nav_mesh();
-			Ok(None)
-		},
-		unknown => {
-			Err(TileSpawnError::UnknownChar(unknown))
-		}
-	};
 }

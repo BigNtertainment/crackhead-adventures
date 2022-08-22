@@ -95,15 +95,15 @@ impl Default for PlayerBundle {
 }
 
 impl Tile for PlayerBundle {
-	fn at(position: Vec2) -> Self {
+	fn spawn(position: Vec2, texture: Handle<Image>) -> Self {
 		Self {
 			sprite_budle: SpriteBundle {
 				sprite: Sprite {
-					color: Color::rgb(0.25, 0.25, 0.75),
 					custom_size: Some(Vec2::splat(TILE_SIZE)),
 					..Default::default()
 				},
-				transform: Transform::from_xyz(position.x, position.y, 0.0),
+				texture,
+				transform: Transform::from_xyz(position.x, position.y, 50.0),
 				..Default::default()
 			},
 			..Default::default()

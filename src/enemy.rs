@@ -11,7 +11,7 @@ use crate::{TILE_SIZE, GameState};
 use crate::tilemap::Tile;
 use crate::unit::{Movement, Shooting, Health};
 
-pub const ENEMY_SIGHT: f32 = 400.0;
+pub const ENEMY_SIGHT: f32 = 600.0;
 pub const SHOCK_DURATION: f32 = 1.25;
 
 pub struct EnemyPlugin;
@@ -71,15 +71,11 @@ impl Default for EnemyBundle {
 }
 
 impl Tile for EnemyBundle {
-	fn at(position: Vec2) -> Self {
+	fn spawn(position: Vec2, texture: Handle<Image>) -> Self {
 		Self {
 			sprite_budle: SpriteBundle {
-				sprite: Sprite {
-					color: Color::rgb(250.0 / 255.0, 44.0 / 255.0, 12.0 / 255.0),
-					custom_size: Some(Vec2::splat(TILE_SIZE)),
-					..Default::default()
-				},
-				transform: Transform::from_xyz(position.x, position.y, 0.0),
+				transform: Transform::from_xyz(position.x, position.y, 50.0),
+				texture,
 				..Default::default()
 			},
 			..Default::default()
