@@ -44,66 +44,59 @@ impl Health {
 		self.max_health
 	}
 
-	pub fn set_health(&mut self, h:f32) {
-		self.health = h;
+	pub fn set_health(&mut self, hp: f32) {
+		self.health = hp;
 	}
 }
 
+pub trait Effect {
+	fn apply(&self, movement: &mut Movement, health: &mut Health);
+	fn finish(&self, movement: &mut Movement, health: &mut Health);
+}
 
 #[derive(Default, Reflect, Inspectable, Component)]
 #[reflect(Component)]
 pub struct Inventory {
-	small_powerup: usize,
-	small_powerup_health: f32,
-	big_powerup: usize,
-	big_powerup_health: f32,
+	small_powerups: usize,
+	big_powerups: usize,
 }
 
 impl Inventory {
-	pub fn new(_small_powerup_health: f32, _big_powerup_health: f32) -> Self {
-		Self {small_powerup: 2, big_powerup: 2, small_powerup_health: _small_powerup_health, big_powerup_health: _big_powerup_health}
+	pub fn new() -> Self {
+		Self {small_powerups: 2, big_powerups: 2 }
 	}
 
-
-	pub fn get_small_powerup(&self) -> usize{
-		self.small_powerup
-	}
-
-	pub fn get_small_powerup_health(&self) -> f32{
-		self.small_powerup_health
+	pub fn get_small_powerup_quantity(&self) -> usize{
+		self.small_powerups
 	}
 
 	pub fn subtract_small_powerup(&mut self, amount: usize) -> bool {
-		if amount > self.small_powerup {
+		if amount > self.small_powerups {
 			return false;
 		} else {
-			self.small_powerup -= amount;
+			self.small_powerups -= amount;
 			return true;
 		}
 	}
 
 	pub fn add_small_powerup(&mut self, amount: usize) {
-		self.small_powerup += amount;
+		self.small_powerups += amount;
 	}
 
-	pub fn get_big_powerup(&self) -> usize{
-		self.big_powerup
-	}
-
-	pub fn get_big_powerup_health(&self) -> f32{
-		self.big_powerup_health
+	pub fn get_big_powerup_quantity(&self) -> usize{
+		self.big_powerups
 	}
 
 	pub fn subtract_big_powerup(&mut self, amount: usize) -> bool {
-		if amount > self.big_powerup {
+		if amount > self.big_powerups {
 			return false;
 		} else {
-			self.big_powerup -= amount;
+			self.big_powerups -= amount;
 			return true;
 		}
 	}
 
 	pub fn add_big_powerup(&mut self, amount: usize) {
-		self.big_powerup += amount;
+		self.big_powerups += amount;
 	}
 }
