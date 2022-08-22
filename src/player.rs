@@ -179,47 +179,6 @@ fn player_movement(
 		);
 
 		transform.translation += movement_vector.extend(0.0);
-
-		// let mut target = transform.translation
-		// 	+ direction.normalize() * movement.speed * TILE_SIZE * time.delta_seconds();
-
-		// let player_size = if let Some(player_size) = sprite.custom_size {
-		// 	Vec2::new(
-		// 		player_size.x * transform.scale.x,
-		// 		player_size.y * transform.scale.y,
-		// 	)
-		// } else {
-		// 	Vec2::new(transform.scale.x, transform.scale.y)
-		// };
-
-		// for wall_transform in wall_query.iter() {
-		// 	let collision = collide(
-		// 		target,
-		// 		player_size,
-		// 		wall_transform.translation,
-		// 		Vec2::splat(TILE_SIZE),
-		// 	);
-
-		// 	if let Some(collision) = collision {
-		// 		match collision {
-		// 			Collision::Bottom => {
-		// 				target.y = wall_transform.translation.y - TILE_SIZE;
-		// 			}
-		// 			Collision::Top => {
-		// 				target.y = wall_transform.translation.y + TILE_SIZE;
-		// 			}
-		// 			Collision::Left => {
-		// 				target.x = wall_transform.translation.x - TILE_SIZE;
-		// 			}
-		// 			Collision::Right => {
-		// 				target.x = wall_transform.translation.x + TILE_SIZE;
-		// 			}
-		// 			Collision::Inside => { /* what */ }
-		// 		};
-		// 	}
-		// }
-
-		// transform.translation = target;
 	}
 }
 

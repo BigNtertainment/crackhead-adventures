@@ -47,7 +47,7 @@ impl EnemyNavMesh {
 		self.triangles.push(indices.into());
 	}
 
-	pub fn insert_square(&mut self, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) {
+	pub fn insert_rect(&mut self, p1: Vec2, p2: Vec2, p3: Vec2, p4: Vec2) {
 		let indices = (
 			self.vertex_index(NavVec3::new(p1.x, p1.y, 0.0)) as u32,
 			self.vertex_index(NavVec3::new(p2.x, p2.y, 0.0)) as u32,
