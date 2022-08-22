@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -9,8 +10,8 @@ use bevy_kira_audio::prelude::*;
 use rand::prelude::*;
 
 use crate::cocaine::Cocaine;
-use crate::enemy::Enemy;
-use crate::tilemap::{Tile};
+use crate::enemy::{Enemy, EnemyBodyBundle, EnemyTextures};
+use crate::tilemap::Tile;
 use crate::unit::{Effect, Health, Inventory, Movement, Shooting};
 use crate::HEIGHT;
 use crate::WIDTH;
@@ -162,8 +163,8 @@ fn player_movement(
 				direction * (hit.toi - 0.1)
 			} else {
 				direction * (max_time_of_impact - 0.1)
-			}.x,
-
+			}
+			.x,
 			if let Some((_, hit)) = rapier_context.cast_shape(
 				position,
 				rotation,
@@ -175,7 +176,8 @@ fn player_movement(
 				direction * (hit.toi - 0.05)
 			} else {
 				direction * (max_time_of_impact - 0.05)
-			}.y,
+			}
+			.y,
 		);
 
 		transform.translation += movement_vector.extend(0.0);
@@ -232,13 +234,14 @@ struct ShotSound(Handle<AudioSource>);
 fn player_shoot(
 	mut commands: Commands,
 	mut player_query: Query<(Entity, &Transform, &mut Shooting), With<Player>>,
-	enemies_query: Query<Entity, With<Enemy>>,
+	enemies_query: Query<(Entity, &Transform), With<Enemy>>,
 	rapier_context: Res<RapierContext>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
 	window: Res<Windows>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>,
+	enemy_textures: Res<EnemyTextures>,
 ) {
 	let (player_entity, player_transform, mut shooting) = player_query.single_mut();
 
@@ -268,9 +271,19 @@ fn player_shoot(
 				solid,
 				filter,
 			) {
-				for enemy in enemies_query.iter() {
+				for (enemy, enemy_transform) in enemies_query.iter() {
 					if entity.id() == enemy.id() {
 						commands.entity(entity).despawn_recursive();
+
+						// Spawn the enemy body
+						commands.spawn_bundle(EnemyBodyBundle {
+							sprite_bundle: SpriteBundle {
+								transform: Transform::from_translation(enemy_transform.translation)
+									.with_rotation(Quat::from_rotation_z(rand::random::<f32>() * 2.0 * PI)),
+								texture: enemy_textures.body.clone(),
+								..Default::default()
+							},
+						});
 					}
 				}
 			}
@@ -393,7 +406,10 @@ fn pick_up_cocaine(
 	let (mut player_inventory, player_transform) = player_query.single_mut();
 
 	for (cocaine, cocaine_transform) in cocaine_query.iter() {
-		if (player_transform.translation.truncate() - cocaine_transform.translation.truncate()).length() <= TILE_SIZE / 2.0 {
+		if (player_transform.translation.truncate() - cocaine_transform.translation.truncate())
+			.length()
+			<= TILE_SIZE / 2.0
+		{
 			player_inventory.add_small_powerup(1);
 			commands.entity(cocaine).despawn_recursive();
 		}

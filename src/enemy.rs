@@ -76,7 +76,7 @@ impl Tile for EnemyBundle {
 	fn spawn(position: Vec2, texture: Handle<Image>, flip_x: bool, flip_y: bool) -> Self {
 		Self {
 			sprite_budle: SpriteBundle {
-				transform: Transform::from_xyz(position.x, position.y, 50.0),
+				transform: Transform::from_xyz(position.x, position.y, 45.0),
 				texture,
 				sprite: Sprite {
 					flip_x,
@@ -88,6 +88,12 @@ impl Tile for EnemyBundle {
 			..Default::default()
 		}
 	}
+}
+
+#[derive(Bundle)]
+pub struct EnemyBodyBundle {
+	#[bundle]
+	pub sprite_bundle: SpriteBundle,
 }
 
 fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -102,12 +108,14 @@ fn load_enemy_textures(mut commands: Commands, mut textures: ResMut<TexturesMemo
 	commands.insert_resource(EnemyTextures {
 		idle: textures.get(&PathBuf::from("img/enemy_idle.png"), &asset_server),
 		active: textures.get(&PathBuf::from("img/enemy.png"), &asset_server),
+		body: textures.get(&PathBuf::from("img/enemy_ded.png"), &asset_server),
 	});
 }
 
-struct EnemyTextures {
-	idle: Handle<Image>,
-	active: Handle<Image>,
+pub struct EnemyTextures {
+	pub idle: Handle<Image>,
+	pub active: Handle<Image>,
+	pub body: Handle<Image>,
 }
 
 enum EnemyAiState {
