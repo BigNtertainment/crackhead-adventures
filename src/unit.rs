@@ -7,6 +7,11 @@ pub struct Movement {
 	pub speed: f32,
 }
 
+#[derive(Component)]
+pub struct Shooting {
+	pub cooldown: Timer
+}
+
 #[derive(Default, Reflect, Inspectable, Component)]
 #[reflect(Component)]
 pub struct Health {
@@ -45,10 +50,61 @@ impl Health {
 	pub fn get_max_health(&self) -> f32 {
 		self.max_health
 	}
+
+	pub fn set_health(&mut self, hp: f32) {
+		self.health = hp;
+	}
 }
 
+pub trait Effect {
+	fn apply(&self, movement: &mut Movement, health: &mut Health);
+	fn finish(&self, movement: &mut Movement, health: &mut Health);
+}
 
-#[derive(Component)]
-pub struct Shooting {
-	pub cooldown: Timer
+#[derive(Default, Reflect, Inspectable, Component)]
+#[reflect(Component)]
+pub struct Inventory {
+	small_powerups: usize,
+	big_powerups: usize,
+}
+
+#[allow(dead_code)]
+impl Inventory {
+	pub fn new() -> Self {
+		Self {small_powerups: 2, big_powerups: 2 }
+	}
+
+	pub fn get_small_powerup_quantity(&self) -> usize{
+		self.small_powerups
+	}
+
+	pub fn subtract_small_powerup(&mut self, amount: usize) -> bool {
+		if amount > self.small_powerups {
+			return false;
+		} else {
+			self.small_powerups -= amount;
+			return true;
+		}
+	}
+
+	pub fn add_small_powerup(&mut self, amount: usize) {
+		self.small_powerups += amount;
+	}
+
+	pub fn get_big_powerup_quantity(&self) -> usize{
+		self.big_powerups
+	}
+
+	pub fn subtract_big_powerup(&mut self, amount: usize) -> bool {
+		if amount > self.big_powerups {
+			return false;
+		} else {
+			self.big_powerups -= amount;
+			return true;
+		}
+	}
+
+	pub fn add_big_powerup(&mut self, amount: usize) {
+		self.big_powerups += amount;
+	}
 }

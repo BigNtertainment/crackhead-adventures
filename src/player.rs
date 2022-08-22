@@ -10,43 +10,33 @@ use bevy_kira_audio::prelude::*;
 use rand::prelude::*;
 
 use crate::enemy::Enemy;
-use crate::{TILE_SIZE, GameState};
+use crate::tilemap::{Tile, TileCollider};
+use crate::unit::{Effect, Health, Inventory, Movement, Shooting};
 use crate::HEIGHT;
 use crate::WIDTH;
-use crate::tilemap::{TileCollider, Tile};
-use crate::unit::{Movement, Health, Shooting};
+use crate::{GameState, TILE_SIZE};
+
+mod ui;
+
+use ui::{ui_setup, drop_ui, update_ui, load_font};
 
 pub const WEAPON_RANGE: f32 = 400.0;
 pub const WEAPON_COOLDOWN: f32 = 0.5;
+pub const SMALL_POWERUP_DURATION: f32 = 5.0;
+pub const BIG_POWERUP_DURATION: f32 = 5.0;
 
 #[derive(Component)]
 pub struct Player;
-
-#[derive(Component)]
-pub struct PlayerUi;
-
-#[derive(Component)]
-pub struct HealthBar;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
-		app
-			.register_type::<Movement>()
-
+		app.register_type::<Movement>()
 			.add_startup_system(load_shot_sound)
-
-			.add_system_set(
-				SystemSet::on_enter(GameState::Game)
-					.with_system(ui_setup)
-			)
-
-			.add_system_set(
-				SystemSet::on_exit(GameState::Game)
-					.with_system(drop_ui)
-			)
-
+			.add_startup_system(load_font)
+			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup))
+			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui))
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
@@ -55,6 +45,8 @@ impl Plugin for PlayerPlugin {
 					.with_system(player_shoot.after("player_aim"))
 					.with_system(damage_yourself)
 					.with_system(update_ui)
+					.with_system(player_aim)
+					.with_system(use_powerup),
 			);
 	}
 }
@@ -69,6 +61,8 @@ pub struct PlayerBundle {
 	health: Health,
 	shooting: Shooting,
 	rapier_collider: Collider,
+	inventory: Inventory,
+	effect: EffectData,
 }
 
 impl Default for PlayerBundle {
@@ -88,6 +82,11 @@ impl Default for PlayerBundle {
 			health: Health::new(100.0),
 			shooting: Shooting {
 				cooldown: Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false)
+			},
+			inventory: Inventory::new(),
+			effect: EffectData {
+				effect: None,
+				duration: Timer::from_seconds(0.0, false),
 			},
 			rapier_collider: Collider::cuboid(TILE_SIZE/2.0, TILE_SIZE/2.0)
 		}
@@ -113,74 +112,16 @@ impl Tile for PlayerBundle {
 	}
 }
 
-fn ui_setup(mut commands: Commands) {
-	commands
-		.spawn_bundle(NodeBundle {
-			style: Style  {
-				size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-				padding: UiRect::all(Val::Px(20.0)),
-                justify_content: JustifyContent::SpaceBetween,
-                ..Default::default()
-			},
-            color: Color::NONE.into(),
-			..Default::default()
-		})
-		.insert(Name::new("UI"))
-		.insert(PlayerUi)
-		.with_children(|parent| {
-			parent
-				.spawn_bundle(NodeBundle {
-					style: Style {
-						size: Size::new(Val::Px(240.0), Val::Percent(100.0)),
-						flex_direction: FlexDirection::Column,
-						justify_content: JustifyContent::FlexEnd,
-						..Default::default()
-					},
-					color: Color::NONE.into(),
-					..Default::default()
-				})
-				.insert(Name::new("Bars"))
-				.with_children(|parent| {
-					parent
-						.spawn_bundle(NodeBundle {
-							style: Style {
-								size: Size::new(Val::Percent(100.0), Val::Px(30.0)),
-								padding: UiRect::all(Val::Px(7.0)),
-								..Default::default()
-							},
-							color: Color::rgb(0.0, 0.0, 0.0).into(),
-							..Default::default()
-						})
-						.insert(Name::new("HealthBarContainer"))
-						.with_children(|parent| {
-							parent
-								.spawn_bundle(NodeBundle {
-									style: Style {
-										size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
-										..Default::default()
-									},
-									color: Color::rgb(0.95, 0.04, 0.07).into(),
-									..Default::default()
-								})
-								.insert(Name::new("HealthBar"))
-								.insert(HealthBar);
-						});
-				});
-		});
-}
-
-fn drop_ui(mut commands: Commands, ui_query: Query<Entity, With<PlayerUi>>) {
-	let ui = ui_query.single();
-	commands.entity(ui).despawn_recursive();
-}
-
 fn player_movement(
 	mut player_query: Query<(&Movement, &mut Transform, &Sprite), With<Player>>,
 	wall_query: Query<&Transform, (With<TileCollider>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
-	time: Res<Time>
+	time: Res<Time>,
 ) {
-	let (movement, mut transform, sprite) = player_query.iter_mut().next().expect("Player not found in the scene!");
+	let (movement, mut transform, sprite) = player_query
+		.iter_mut()
+		.next()
+		.expect("Player not found in the scene!");
 
 	let mut direction = Vec3::new(0.0, 0.0, 0.0);
 
@@ -191,7 +132,7 @@ fn player_movement(
 	if keyboard.pressed(KeyCode::S) {
 		direction.y -= 1.0;
 	}
-	
+
 	if keyboard.pressed(KeyCode::D) {
 		direction.x += 1.0;
 	}
@@ -201,7 +142,10 @@ fn player_movement(
 	}
 
 	if direction.length() != 0.0 {
-		let mut target = transform.translation + direction.normalize() * movement.speed * TILE_SIZE * time.delta_seconds();
+		// Make it work for even bigger speeds using raycasts
+
+		let mut target = transform.translation
+			+ direction.normalize() * movement.speed * TILE_SIZE * time.delta_seconds();
 
 		let player_size = if let Some(player_size) = sprite.custom_size {
 			Vec2::new(
@@ -217,23 +161,23 @@ fn player_movement(
 				target,
 				player_size,
 				wall_transform.translation,
-				Vec2::splat(TILE_SIZE)
+				Vec2::splat(TILE_SIZE),
 			);
 
 			if let Some(collision) = collision {
 				match collision {
 					Collision::Bottom => {
 						target.y = wall_transform.translation.y - TILE_SIZE;
-					},
+					}
 					Collision::Top => {
 						target.y = wall_transform.translation.y + TILE_SIZE;
-					},
+					}
 					Collision::Left => {
 						target.x = wall_transform.translation.x - TILE_SIZE;
-					},
+					}
 					Collision::Right => {
 						target.x = wall_transform.translation.x + TILE_SIZE;
-					},
+					}
 					Collision::Inside => { /* what */ }
 				};
 			}
@@ -245,7 +189,7 @@ fn player_movement(
 
 fn camera_follow(
 	player_query: Query<&Transform, With<Player>>,
-	mut camera_query: Query<&mut Transform, (Without<Player>, With<Camera>)>
+	mut camera_query: Query<&mut Transform, (Without<Player>, With<Camera>)>,
 ) {
 	let player_transform = player_query.single();
 	let mut camera_transform = camera_query.single_mut();
@@ -254,38 +198,26 @@ fn camera_follow(
 	camera_transform.translation.y = player_transform.translation.y;
 }
 
-fn update_ui(
-	player_query: Query<&Health, With<Player>>,
-	mut health_bar_query: Query<&mut Style, With<HealthBar>>
-) {
-	let player_health = player_query.single();
-	let mut health_bar_style = health_bar_query.single_mut();
-
-	health_bar_style.size.width = Val::Percent(player_health.get_health() / player_health.get_max_health() * 100.0);
-}
-
 fn damage_yourself(
 	mut player_query: Query<&mut Health, With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
-	mut state: ResMut<State<GameState>>
+	mut state: ResMut<State<GameState>>,
 ) {
 	let mut player_health = player_query.single_mut();
 
 	if keyboard.just_pressed(KeyCode::Space) {
 		if player_health.take_damage(rand::thread_rng().gen::<f32>() * 10.0 + 10.0) {
-			state.set(GameState::GameOver).expect("Failed to change states");
+			state
+				.set(GameState::GameOver)
+				.expect("Failed to change states");
 		}
 	}
-
 }
 
-fn player_aim(
-	mut player_query: Query<&mut Transform, With<Player>>,
-	window: Res<Windows>
-) {
+fn player_aim(mut player_query: Query<&mut Transform, With<Player>>, window: Res<Windows>) {
 	let mut player_transform = player_query.single_mut();
-	
-	if let Some(target) = window.iter().next().unwrap().cursor_position(){
+
+	if let Some(target) = window.iter().next().unwrap().cursor_position() {
 		let window_size = Vec2::new(WIDTH as f32, HEIGHT as f32);
 
 		let target = target - window_size / 2.0;
@@ -300,7 +232,6 @@ fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 	commands.insert_resource(ShotSound(sound));
 }
-
 struct ShotSound(Handle<AudioSource>);
 
 fn player_shoot(
@@ -312,7 +243,7 @@ fn player_shoot(
 	time: Res<Time>,
 	window: Res<Windows>,
 	audio: Res<Audio>,
-	shot_sound: Res<ShotSound>
+	shot_sound: Res<ShotSound>,
 ) {
 	let (player_entity, player_transform, mut shooting) = player_query.single_mut();
 
@@ -335,9 +266,13 @@ fn player_shoot(
 		let filter = QueryFilter::default()
 			.exclude_collider(player_entity);
 
-		if buttons.just_pressed(MouseButton::Left) {	
-			if let Some((entity, _toi))  = rapier_context.cast_ray(
-				ray_origin, ray_direction, max_time_of_impact, solid, filter
+		if buttons.just_pressed(MouseButton::Left) {
+			if let Some((entity, _toi)) = rapier_context.cast_ray(
+				ray_origin,
+				ray_direction,
+				max_time_of_impact,
+				solid,
+				filter,
 			) {
 				for enemy in enemies_query.iter() {
 					if entity.id() == enemy.id() {
@@ -347,12 +282,112 @@ fn player_shoot(
 				
 			}
 
-			audio
-				.play(shot_sound.0.clone())
-				.with_volume(0.15);
+			audio.play(shot_sound.0.clone()).with_volume(0.15);
 
 			// Reset the cooldown timer
 			shooting.cooldown.reset();
 		}
+	}
+}
+
+#[derive(Component)]
+pub struct EffectData {
+	effect: Option<Box<dyn Effect + Send + Sync>>,
+	duration: Timer,
+}
+
+impl EffectData {
+	fn apply(
+		&mut self,
+		effect: Option<Box<dyn Effect + Send + Sync>>,
+		movement: &mut Movement,
+		health: &mut Health,
+		duration: f32,
+	) {
+		self.effect = effect;
+
+		if let Some(effect) = &mut self.effect {
+			effect.apply(movement, health);
+		}
+
+		self.duration = Timer::from_seconds(duration, false);
+	}
+
+	fn finish(&mut self, movement: &mut Movement, health: &mut Health) {
+		if let Some(effect) = &self.effect {
+			effect.finish(movement, health);
+		}
+
+		self.effect = None;
+	}
+}
+
+pub struct SmallPowerup;
+
+impl Effect for SmallPowerup {
+	fn apply(&self, movement: &mut Movement, health: &mut Health) {
+		movement.speed *= 2.0;
+		health.heal(20.0);
+	}
+
+	fn finish(&self, movement: &mut Movement, _: &mut Health) {
+		movement.speed /= 2.0;
+	}
+}
+
+pub struct BigPowerup;
+
+impl Effect for BigPowerup {
+	fn apply(&self, movement: &mut Movement, health: &mut Health) {
+		movement.speed *= 5.0;
+		if health.get_health() > 5.0 {
+			health.set_health(5.0);
+		}
+	}
+
+	fn finish(&self, movement: &mut Movement, _: &mut Health) {
+		movement.speed /= 5.0;
+	}
+}
+
+fn use_powerup(
+	mut player_query: Query<
+		(&mut Inventory, &mut Movement, &mut Health, &mut EffectData),
+		With<Player>,
+	>,
+	keyboard: Res<Input<KeyCode>>,
+	time: Res<Time>,
+) {
+	let (mut inventory, mut movement, mut health, mut effect_data) = player_query.single_mut();
+
+	effect_data.duration.tick(time.delta());
+
+	if effect_data.duration.just_finished() {
+		// Remove the effects
+		effect_data.finish(movement.as_mut(), health.as_mut());
+	}
+
+	// Don't take more drugs if you're high already
+	if effect_data.effect.is_some() {
+		return;
+	}
+
+	// Small powerup is under E
+	if keyboard.just_pressed(KeyCode::E) && inventory.subtract_small_powerup(1) {
+		effect_data.apply(
+			Some(Box::new(SmallPowerup)),
+			movement.as_mut(),
+			health.as_mut(),
+			SMALL_POWERUP_DURATION,
+		);
+	}
+	// Big powerup is under R
+	else if keyboard.just_pressed(KeyCode::R) && inventory.subtract_big_powerup(1) {
+		effect_data.apply(
+			Some(Box::new(BigPowerup)),
+			movement.as_mut(),
+			health.as_mut(),
+			BIG_POWERUP_DURATION,
+		);
 	}
 }

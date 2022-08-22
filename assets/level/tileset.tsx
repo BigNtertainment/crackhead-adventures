@@ -19,10 +19,10 @@
  <tile id="6">
   <image width="50" height="50" source="../img/pillar.png"/>
  </tile>
- <tile id="7">
-  <image width="50" height="50" source="../img/wall.png"/>
- </tile>
  <tile id="8">
   <image width="50" height="50" source="../img/wall_vertical.png"/>
+ </tile>
+ <tile id="9">
+  <image width="50" height="50" source="../img/wall.png"/>
  </tile>
 </tileset>
