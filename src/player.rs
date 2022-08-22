@@ -8,10 +8,11 @@ use bevy_rapier2d::prelude::*;
 use bevy_kira_audio::prelude::*;
 
 use rand::prelude::*;
+use rand::seq::SliceRandom;
 
 use crate::cocaine::Cocaine;
 use crate::enemy::{Enemy, EnemyBodyBundle, EnemyTextures};
-use crate::tilemap::Tile;
+use crate::tilemap::{Tile, Tilemap};
 use crate::unit::{Effect, Health, Inventory, Movement, Shooting};
 use crate::HEIGHT;
 use crate::WIDTH;
@@ -235,6 +236,7 @@ fn player_shoot(
 	mut commands: Commands,
 	mut player_query: Query<(Entity, &Transform, &mut Shooting), With<Player>>,
 	enemies_query: Query<(Entity, &Transform), With<Enemy>>,
+	world_query: Query<Entity, With<Tilemap>>,
 	rapier_context: Res<RapierContext>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
@@ -244,6 +246,7 @@ fn player_shoot(
 	enemy_textures: Res<EnemyTextures>,
 ) {
 	let (player_entity, player_transform, mut shooting) = player_query.single_mut();
+	let world = world_query.single();
 
 	shooting.cooldown.tick(time.delta());
 
@@ -276,14 +279,45 @@ fn player_shoot(
 						commands.entity(entity).despawn_recursive();
 
 						// Spawn the enemy body
-						commands.spawn_bundle(EnemyBodyBundle {
+						let body = commands.spawn_bundle(EnemyBodyBundle {
 							sprite_bundle: SpriteBundle {
 								transform: Transform::from_translation(enemy_transform.translation)
-									.with_rotation(Quat::from_rotation_z(rand::random::<f32>() * 2.0 * PI)),
+									.with_rotation(Quat::from_rotation_z(
+										rand::random::<f32>() * 2.0 * PI,
+									)),
 								texture: enemy_textures.body.clone(),
 								..Default::default()
 							},
-						});
+						}).id();
+
+						commands.entity(world).push_children(&[body]);
+
+						// Spawn a few blood splatters
+						let temp: Vec<u32> = (0..4).collect();
+
+						let mut splatters = Vec::new();
+
+						for _ in 0..(*temp.choose(&mut rand::thread_rng()).unwrap()) {
+							splatters.push(commands.spawn_bundle(EnemyBodyBundle {
+								sprite_bundle: SpriteBundle {
+									transform: Transform::from_translation(
+										enemy_transform.translation
+											+ Vec3::new(
+												rand::random::<f32>() * 60.0 - 30.0,
+												rand::random::<f32>() * 60.0 - 30.0,
+												-10.0,
+											),
+									)
+									.with_rotation(
+										Quat::from_rotation_z(rand::random::<f32>() * 2.0 * PI),
+									),
+									texture: enemy_textures.blood_splatter.clone(),
+									..Default::default()
+								},
+							}).id());
+						}
+
+						commands.entity(world).push_children(&splatters);
 					}
 				}
 			}

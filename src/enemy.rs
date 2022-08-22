@@ -109,6 +109,7 @@ fn load_enemy_textures(mut commands: Commands, mut textures: ResMut<TexturesMemo
 		idle: textures.get(&PathBuf::from("img/enemy_idle.png"), &asset_server),
 		active: textures.get(&PathBuf::from("img/enemy.png"), &asset_server),
 		body: textures.get(&PathBuf::from("img/enemy_ded.png"), &asset_server),
+		blood_splatter: textures.get(&PathBuf::from("img/blood_splatter.png"), &asset_server),
 	});
 }
 
@@ -116,6 +117,7 @@ pub struct EnemyTextures {
 	pub idle: Handle<Image>,
 	pub active: Handle<Image>,
 	pub body: Handle<Image>,
+	pub blood_splatter: Handle<Image>,
 }
 
 enum EnemyAiState {
