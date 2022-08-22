@@ -2,7 +2,6 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioControl, AudioSource};
-use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
 
@@ -13,7 +12,7 @@ use crate::unit::{Health, Movement, Shooting};
 use crate::{GameState, TILE_SIZE};
 
 pub const ENEMY_SIGHT: f32 = 600.0;
-pub const SHOCK_DURATION: f32 = 1.25;
+pub const SHOCK_DURATION: f32 = 0.75;
 
 pub struct EnemyPlugin;
 
@@ -116,11 +115,8 @@ fn update_enemy_ai(
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>,
-	mut lines: ResMut<DebugLines>
 ) {
 	let (player, player_transform, mut player_health) = player.single_mut();
-
-	nav_mesh.draw(&mut lines);
 
 	let player_position = player_transform.translation;
 

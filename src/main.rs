@@ -12,6 +12,7 @@ pub const TILE_SIZE: f32 = 50.0;
 mod unit;
 mod player;
 mod enemy;
+mod cocaine;
 mod debug;
 mod tilemap;
 mod game_over;

@@ -6,6 +6,7 @@ use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
 use tiled::{Chunk, LayerType, Loader, TileLayer};
 
+use crate::cocaine::CocaineBundle;
 use crate::enemy::EnemyBundle;
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::PlayerBundle;
@@ -74,7 +75,7 @@ impl Tile for WallBundle {
 	fn spawn(position: Vec2, texture: Handle<Image>, flip_x: bool, flip_y: bool) -> Self {
 		Self {
 			sprite_bundle: SpriteBundle {
-				transform: Transform::from_xyz(position.x, position.y, 0.0),
+				transform: Transform::from_xyz(position.x, position.y, 10.0),
 				texture,
 				sprite: Sprite {
 					flip_x,
@@ -197,7 +198,7 @@ fn load_level(
 									if let Some(tile) = chunk.get_tile_data(x, y) {
 										let tile_pos = Vec2::new(
 											(chunk_pos.0 * Chunk::WIDTH as i32 + x) as f32,
-											(chunk_pos.1 * Chunk::HEIGHT as i32 + y) as f32,
+											-(chunk_pos.1 * Chunk::HEIGHT as i32 + y) as f32,
 										) * TILE_SIZE;
 
 										let (flip_x, flip_y) = (
@@ -258,7 +259,16 @@ fn load_level(
 														flip_x,
 														flip_y,
 													))
-												}
+												},
+												4 => {
+													// Cocaine layer
+													commands.spawn_bundle(CocaineBundle::spawn(
+														tile_pos,
+														textures.get(&image_source, &asset_server),
+														flip_x,
+														flip_y
+													))
+												},
 												_ => {
 													panic!("Too much layers in the level file");
 												}

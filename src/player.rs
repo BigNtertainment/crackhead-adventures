@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy::sprite::collide_aabb::{collide, Collision};
 
 use bevy_rapier2d::prelude::*;
 
@@ -9,8 +8,9 @@ use bevy_kira_audio::prelude::*;
 
 use rand::prelude::*;
 
+use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
-use crate::tilemap::{Tile, TileCollider};
+use crate::tilemap::{Tile};
 use crate::unit::{Effect, Health, Inventory, Movement, Shooting};
 use crate::HEIGHT;
 use crate::WIDTH;
@@ -45,7 +45,7 @@ impl Plugin for PlayerPlugin {
 					.with_system(player_shoot.after("player_aim"))
 					.with_system(damage_yourself)
 					.with_system(update_ui)
-					.with_system(player_aim)
+					.with_system(pick_up_cocaine)
 					.with_system(use_powerup),
 			);
 	}
@@ -113,13 +113,12 @@ impl Tile for PlayerBundle {
 }
 
 fn player_movement(
-	mut player_query: Query<(Entity, &Movement, &mut Transform, &Sprite, &Collider), With<Player>>,
-	wall_query: Query<&Transform, (With<TileCollider>, Without<Player>)>,
+	mut player_query: Query<(Entity, &Movement, &mut Transform, &Collider), With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
 	rapier_context: Res<RapierContext>,
 ) {
-	let (player_entity, movement, mut transform, sprite, rapier_collider) = player_query
+	let (player_entity, movement, mut transform, rapier_collider) = player_query
 		.iter_mut()
 		.next()
 		.expect("Player not found in the scene!");
@@ -382,5 +381,20 @@ fn use_powerup(
 			health.as_mut(),
 			BIG_POWERUP_DURATION,
 		);
+	}
+}
+
+fn pick_up_cocaine(
+	mut commands: Commands,
+	mut player_query: Query<(&mut Inventory, &Transform), With<Player>>,
+	cocaine_query: Query<(Entity, &Transform), With<Cocaine>>,
+) {
+	let (mut player_inventory, player_transform) = player_query.single_mut();
+
+	for (cocaine, cocaine_transform) in cocaine_query.iter() {
+		if (player_transform.translation.truncate() - cocaine_transform.translation.truncate()).length() <= TILE_SIZE / 2.0 {
+			player_inventory.add_small_powerup(1);
+			commands.entity(cocaine).despawn_recursive();
+		}
 	}
 }
