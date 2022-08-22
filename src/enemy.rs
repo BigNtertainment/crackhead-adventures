@@ -71,11 +71,16 @@ impl Default for EnemyBundle {
 }
 
 impl Tile for EnemyBundle {
-	fn spawn(position: Vec2, texture: Handle<Image>) -> Self {
+	fn spawn(position: Vec2, texture: Handle<Image>, flip_x: bool, flip_y: bool) -> Self {
 		Self {
 			sprite_budle: SpriteBundle {
 				transform: Transform::from_xyz(position.x, position.y, 50.0),
 				texture,
+				sprite: Sprite {
+					flip_x,
+					flip_y,
+					..Default::default()
+				},
 				..Default::default()
 			},
 			..Default::default()
@@ -152,7 +157,7 @@ fn update_enemy_ai(
 
 				if enemy.shock_timer.finished() && shooting.cooldown.finished() {
 					if player_health.take_damage(rand::random::<f32>() * 5.0 + 20.0) {
-						state.set(GameState::GameOver).expect("Failed to change state");
+						if state.set(GameState::GameOver).is_err() {}
 					}
 
 					audio

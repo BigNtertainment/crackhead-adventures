@@ -3,12 +3,26 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "",
+    "activeFile": "level.tmx",
     "expandedProjectPaths": [
+        "."
     ],
     "fileStates": {
+        "level.tmx": {
+            "expandedGroupLayers": [
+                3
+            ],
+            "scale": 0.75,
+            "selectedLayer": 1,
+            "viewCenter": {
+                "x": 472,
+                "y": 105.33333333333337
+            }
+        },
         "tileset.tsx": {
-            "dynamicWrapping": true
+            "dynamicWrapping": true,
+            "scaleInDock": 1,
+            "scaleInEditor": 1
         }
     },
     "last.imagePath": "G:/MOJE_PROJEKTY/bevy/weekly-game-jam-267/assets/img",
@@ -16,9 +30,13 @@
     "map.tileHeight": 50,
     "map.tileWidth": 50,
     "openFiles": [
+        "level.tmx",
+        "tileset.tsx"
     ],
     "project": "level.tiled-project",
     "recentFiles": [
+        "tileset.tsx",
+        "level.tmx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.type": 1

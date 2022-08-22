@@ -95,11 +95,13 @@ impl Default for PlayerBundle {
 }
 
 impl Tile for PlayerBundle {
-	fn spawn(position: Vec2, texture: Handle<Image>) -> Self {
+	fn spawn(position: Vec2, texture: Handle<Image>, flip_x: bool, flip_y: bool) -> Self {
 		Self {
 			sprite_budle: SpriteBundle {
 				sprite: Sprite {
 					custom_size: Some(Vec2::splat(TILE_SIZE)),
+					flip_x,
+					flip_y,
 					..Default::default()
 				},
 				texture,

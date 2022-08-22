@@ -2,6 +2,7 @@ use std::path::PathBuf;
 use bevy::utils::HashMap;
 
 use bevy::prelude::*;
+use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
 use tiled::{Loader, TileLayer, LayerType, Chunk};
 
@@ -30,6 +31,7 @@ impl Plugin for TileMapPlugin {
 				SystemSet::on_enter(GameState::Game)
 					.with_system(load_level.label("load_level"))
 			)
+
 			.add_system_set(
 				SystemSet::on_exit(GameState::Game)
 					.with_system(drop_level)
@@ -39,7 +41,7 @@ impl Plugin for TileMapPlugin {
 }
 
 pub trait Tile {
-	fn spawn(position: Vec2, texture: Handle<Image>) -> Self;
+	fn spawn(position: Vec2, texture: Handle<Image>, flip_x: bool, flip_y: bool) -> Self;
 }
 
 // Tiles
@@ -71,11 +73,16 @@ impl Default for WallBundle {
 }
 
 impl Tile for WallBundle {
-	fn spawn(position: Vec2, texture: Handle<Image>) -> Self {
+	fn spawn(position: Vec2, texture: Handle<Image>, flip_x: bool, flip_y: bool) -> Self {
 		Self {
 			sprite_bundle: SpriteBundle {
 				transform: Transform::from_xyz(position.x, position.y, 0.0),
 				texture,
+				sprite: Sprite {
+					flip_x,
+					flip_y,
+					..Default::default()
+				},
 				..Default::default()
 			},
 			..Default::default()
@@ -100,11 +107,16 @@ impl Default for FloorBundle {
 }
 
 impl Tile for FloorBundle {
-	fn spawn(position: Vec2, texture: Handle<Image>) -> Self {
+	fn spawn(position: Vec2, texture: Handle<Image>, flip_x: bool, flip_y: bool) -> Self {
 		Self {
 			sprite_bundle: SpriteBundle {
 				transform: Transform::from_xyz(position.x, position.y, 0.0),
 				texture,
+				sprite: Sprite {
+					flip_x,
+					flip_y,
+					..Default::default()
+				},
 				..Default::default()
 			},
 			..Default::default()
@@ -139,6 +151,8 @@ fn load_level(
     let tileset = loader.load_tsx_tileset("assets/level/tileset.tsx").unwrap();
 	let layers = map.layers();
 
+	let mut entities = Vec::new();
+
 	for (layer_num, layer) in layers.enumerate() {
 		match layer.layer_type() {
 			LayerType::TileLayer(layer) => {
@@ -150,7 +164,7 @@ fn load_level(
 						for (chunk_pos, chunk) in layer.chunks() {
 							for x in 0..Chunk::WIDTH as i32 {
 								for y in 0..Chunk::HEIGHT as i32 {
-									if let Some(tile) = chunk.get_tile(x, y) {
+									if let Some(tile) = chunk.get_tile_data(x, y) {
 										let tile_pos = Vec2::new(
 											(chunk_pos.0 * Chunk::WIDTH as i32 + x) as f32,
 											(chunk_pos.1 * Chunk::HEIGHT as i32 + y) as f32,
@@ -165,6 +179,11 @@ fn load_level(
 											);
 										};
 
+										let (flip_x, flip_y) = (
+											tile.flip_h || tile.flip_d,
+											tile.flip_v || tile.flip_d,
+										);
+
 										let tile = tileset.get_tile(tile.id()).expect("what");
 
 										let image_source =
@@ -172,7 +191,7 @@ fn load_level(
 											.source.strip_prefix("assets/level\\..")
 											.expect("what").to_path_buf();
 
-										match layer_num {
+										entities.push(match layer_num {
 											0 => {
 												// Floor layer
 												register_nav_mesh();
@@ -183,8 +202,10 @@ fn load_level(
 														textures.get(
 															&image_source,
 															&asset_server
-														)
-													));
+														),
+														flip_x,
+														flip_y,
+													))
 											},
 											1 => {
 												// Wall layer
@@ -194,8 +215,10 @@ fn load_level(
 														textures.get(
 															&image_source,
 															&asset_server
-														)
-													));
+														),
+														flip_x,
+														flip_y,
+													))
 											},
 											2 => {
 												// Player layer
@@ -205,8 +228,10 @@ fn load_level(
 														textures.get(
 															&image_source,
 															&asset_server
-														)
-													));
+														),
+														flip_x,
+														flip_y,
+													))
 											},
 											3 => {
 												// Enemy layer
@@ -216,13 +241,15 @@ fn load_level(
 													textures.get(
 														&image_source,
 														&asset_server
-													)
-												));
+													),
+													flip_x,
+													flip_y,
+												))
 											},
 											_ => {
 												panic!("Too much layers in the level file");
 											}
-										}
+										}.id());
 									}
 								}
 							}
@@ -235,9 +262,23 @@ fn load_level(
 	}
 
 	nav_mesh.bake();
+
+	commands
+		.spawn()
+		.insert(Name::new("Tilemap"))
+		.insert(Visibility::default())
+		.insert(ComputedVisibility::default())
+		.insert(Transform::default())
+		.insert(GlobalTransform::default())
+		.insert(Tilemap)
+		.push_children(&entities);
 }
 
 fn drop_level(mut commands: Commands, tilemap: Query<Entity, With<Tilemap>>) {
 	let tilemap = tilemap.single();
 	commands.entity(tilemap).despawn_recursive();
+}
+
+fn draw_nav_mesh(nav_mesh: ResMut<EnemyNavMesh>, mut lines: ResMut<DebugLines>) {
+	nav_mesh.draw(&mut lines);
 }
