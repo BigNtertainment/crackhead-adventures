@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_kira_audio::{AudioSource, Audio, AudioControl};
+use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
 
@@ -112,7 +113,7 @@ fn update_enemy_ai(
 	mut state: ResMut<State<GameState>>,
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
-	shot_sound: Res<ShotSound>
+	shot_sound: Res<ShotSound>,
 ) {
 	let (player, player_transform, mut player_health) = player.single_mut();
 

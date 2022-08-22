@@ -172,10 +172,10 @@ fn load_level(
 
 										let mut register_nav_mesh = || {
 											nav_mesh.insert_square(
-												tile_pos + Vec2::new(map.tile_width as f32, map.tile_height as f32),
-												tile_pos + Vec2::new(-(map.tile_width as f32), map.tile_height as f32),
-												tile_pos + Vec2::new(-(map.tile_width as f32), -(map.tile_height as f32)),
-												tile_pos + Vec2::new(map.tile_width as f32, -(map.tile_height as f32)),
+												tile_pos + Vec2::new(map.tile_width as f32, map.tile_height as f32) / 2.0,
+												tile_pos + Vec2::new(-(map.tile_width as f32), map.tile_height as f32) / 2.0,
+												tile_pos + Vec2::new(-(map.tile_width as f32), -(map.tile_height as f32)) / 2.0,
+												tile_pos + Vec2::new(map.tile_width as f32, -(map.tile_height as f32)) / 2.0,
 											);
 										};
 
