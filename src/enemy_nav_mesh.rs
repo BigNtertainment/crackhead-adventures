@@ -29,10 +29,10 @@ impl EnemyNavMesh {
 
 	fn vertex_index(&mut self, vertex: NavVec3) -> usize {
 		match self.vertices.iter().position(|&r| r == vertex) {
-			Some(index) => return index,
+			Some(index) => index,
 			None => {
 				self.vertices.push(vertex);
-				return self.vertices.len() - 1;
+				self.vertices.len() - 1
 			}
 		}
 	}

@@ -1,3 +1,4 @@
+use std::f32::consts::PI;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -5,27 +6,30 @@ use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioControl, AudioSource};
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
+use rand::random;
+use rand::seq::SliceRandom;
 
+use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
-use crate::tilemap::{Tile, TexturesMemo};
-use crate::unit::{Health, Movement, Shooting};
+use crate::tilemap::{TexturesMemo, Tile, Tilemap};
+use crate::unit::{Movement, Shooting};
 use crate::{GameState, TILE_SIZE};
 
 pub const ENEMY_SIGHT: f32 = 600.0;
-pub const SHOCK_DURATION: f32 = 0.75;
+pub const SHOCK_DURATION: f32 = 0.3;
 
 pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
 	fn build(&self, app: &mut App) {
-		app
-			.add_startup_system(load_shot_sound)
+		app.add_startup_system(load_shot_sound)
 			.add_startup_system(load_enemy_textures)
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(update_enemy_ai)
 					.with_system(update_enemy_texture)
+					.with_system(get_shot),
 			);
 	}
 }
@@ -104,7 +108,11 @@ fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 struct ShotSound(Handle<AudioSource>);
 
-fn load_enemy_textures(mut commands: Commands, mut textures: ResMut<TexturesMemo>, asset_server: Res<AssetServer>) {
+fn load_enemy_textures(
+	mut commands: Commands,
+	mut textures: ResMut<TexturesMemo>,
+	asset_server: Res<AssetServer>,
+) {
 	commands.insert_resource(EnemyTextures {
 		idle: textures.get(&PathBuf::from("img/enemy_idle.png"), &asset_server),
 		active: textures.get(&PathBuf::from("img/enemy.png"), &asset_server),
@@ -128,29 +136,37 @@ enum EnemyAiState {
 	},
 }
 
+fn is_on_screen(
+    point: Vec2,
+    window: &Window,
+    camera: &Transform,
+) -> bool {
+    let screen_position = point - camera.translation.truncate();
+
+	screen_position.x.abs() < window.width() / 2.0 && screen_position.y.abs() < window.height() / 2.0
+}
+
 fn update_enemy_ai(
-	mut enemies: Query<(
-		Entity,
-		&mut Transform,
-		&Movement,
-		&mut Shooting,
-		&mut Enemy,
-	)>,
-	mut player: Query<(Entity, &Transform, &mut Health), (With<Player>, Without<Enemy>)>,
+	mut commands: Commands,
+	mut enemies: Query<(Entity, &mut Transform, &Movement, &mut Shooting, &mut Enemy)>,
+	mut player: Query<(Entity, &Transform), (With<Player>, Without<Enemy>)>,
+	tilemap: Query<Entity, (With<Tilemap>, Without<Player>, Without<Enemy>)>,
+	camera: Query<&Transform, (With<Camera>, Without<Player>, Without<Enemy>, Without<Tilemap>)>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
-	mut state: ResMut<State<GameState>>,
+	windows: Res<Windows>,
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>,
+	bullet_texture: Res<BulletTexture>,
 ) {
-	let (player, player_transform, mut player_health) = player.single_mut();
+	let (player, player_transform) = player.single_mut();
+	let tilemap = tilemap.single();
+	let camera = camera.single();
 
 	let player_position = player_transform.translation;
 
-	for (entity, mut transform, movement, mut shooting, mut enemy) in
-		enemies.iter_mut()
-	{
+	for (entity, mut transform, movement, mut shooting, mut enemy) in enemies.iter_mut() {
 		shooting.cooldown.tick(time.delta());
 
 		// Look if there is a direct line of sight to the player
@@ -160,7 +176,9 @@ fn update_enemy_ai(
 			.normalize();
 		let max_time_of_impact = ENEMY_SIGHT;
 		let solid = true;
-		let filter = QueryFilter::default().exclude_collider(entity);
+		let filter = QueryFilter::default()
+			.exclude_collider(entity)
+			.exclude_sensors();
 
 		if let Some((entity, _)) =
 			rapier_context.cast_ray(ray_origin, ray_direction, max_time_of_impact, solid, filter)
@@ -183,20 +201,38 @@ fn update_enemy_ai(
 					Vec2::Y.angle_between((player_position - transform.translation).truncate()),
 				);
 
-				// Don't shoot immediately
-				enemy.shock_timer.tick(time.delta());
-
-				if enemy.shock_timer.finished() && shooting.cooldown.finished() {
-					if player_health.take_damage(rand::random::<f32>() * 5.0 + 20.0) {
-						if state.set(GameState::GameOver).is_err() {}
+				// Don't shoot when off-screen
+				if is_on_screen(transform.translation.truncate(), windows.primary(), camera) {
+					// Don't shoot immediately
+					enemy.shock_timer.tick(time.delta());
+	
+					if enemy.shock_timer.finished() && shooting.cooldown.finished() {
+						let mut bullet_transform = transform
+							.with_translation(transform.translation + transform.up() * TILE_SIZE);
+	
+						bullet_transform.rotate_z(random::<f32>() * 0.05);
+	
+						let bullet = commands
+							.spawn_bundle(BulletBundle {
+								sprite_bundle: SpriteBundle {
+									transform: bullet_transform,
+									texture: bullet_texture.clone(),
+									..Default::default()
+								},
+								bullet: Bullet { speed: 2000.0 },
+								..Default::default()
+							})
+							.id();
+	
+						commands.entity(tilemap).push_children(&[bullet]);
+	
+						audio.play(shot_sound.0.clone()).with_volume(0.1);
+	
+						shooting.cooldown.reset();
 					}
-
-					audio.play(shot_sound.0.clone()).with_volume(0.1);
-
-					shooting.cooldown.reset();
+	
+					continue;
 				}
-
-				continue;
 			}
 		}
 
@@ -209,22 +245,25 @@ fn update_enemy_ai(
 		{
 			let target = path[*current];
 
-			let movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
+			let mut movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
 
-			// If the enemy reached its destination
-			if movement_vector.length() <= 5.0 {
+			while movement_vector.length() <= 5.0 {
 				*current += 1;
 
 				if *current == path.len() {
 					enemy.ai_state = EnemyAiState::Idle;
+					break;
 				}
 
-				continue;
-			}
+				let target = path[*current];
+
+				movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
+			};
 
 			let direction = movement_vector.normalize_or_zero();
 
-			transform.translation += (direction * TILE_SIZE * movement.speed * time.delta_seconds()).extend(0.0);
+			transform.translation +=
+				(direction * TILE_SIZE * movement.speed * time.delta_seconds()).extend(0.0);
 			transform.rotation = Quat::from_rotation_z(Vec2::Y.angle_between(direction));
 		}
 	}
@@ -237,7 +276,82 @@ fn update_enemy_texture(
 	for (mut enemy_texture, enemy) in enemy_query.iter_mut() {
 		enemy_texture.clone_from(match enemy.ai_state {
 			EnemyAiState::Idle => &textures.idle,
-			EnemyAiState::Alert { path: _, current: _ } => &textures.active,
+			EnemyAiState::Alert {
+				path: _,
+				current: _,
+			} => &textures.active,
 		});
+	}
+}
+
+fn get_shot(
+	world: &World,
+	mut commands: Commands,
+	tilemap_query: Query<Entity, With<Tilemap>>,
+	enemy_query: Query<Entity, With<Enemy>>,
+	mut shot_events: EventReader<ShotEvent>,
+	enemy_textures: Res<EnemyTextures>,
+) {
+	let tilemap = tilemap_query.single();
+	let mut enemies: Vec<Entity> = enemy_query.iter().collect();
+
+	for shot in shot_events.iter() {
+		let enemy = shot.0;
+
+		if !enemies.contains(&enemy) {
+			continue;
+		}
+
+		if let Some(enemy_transform) = world.get::<Transform>(enemy) {
+			// Spawn the enemy body
+			let body = commands
+				.spawn_bundle(EnemyBodyBundle {
+					sprite_bundle: SpriteBundle {
+						transform: Transform::from_translation(enemy_transform.translation)
+							.with_rotation(Quat::from_rotation_z(rand::random::<f32>() * 2.0 * PI)),
+						texture: enemy_textures.body.clone(),
+						..Default::default()
+					},
+				})
+				.id();
+
+			commands.entity(tilemap).push_children(&[body]);
+
+			// Spawn a few blood splatters
+			let temp: Vec<u32> = (0..4).collect();
+
+			let mut splatters = Vec::new();
+
+			for _ in 0..(*temp.choose(&mut rand::thread_rng()).unwrap()) {
+				splatters.push(
+					commands
+						.spawn_bundle(EnemyBodyBundle {
+							sprite_bundle: SpriteBundle {
+								transform: Transform::from_translation(
+									enemy_transform.translation
+										+ Vec3::new(
+											rand::random::<f32>() * 60.0 - 30.0,
+											rand::random::<f32>() * 60.0 - 30.0,
+											-10.0,
+										),
+								)
+								.with_rotation(
+									Quat::from_rotation_z(rand::random::<f32>() * 2.0 * PI),
+								),
+								texture: enemy_textures.blood_splatter.clone(),
+								..Default::default()
+							},
+						})
+						.id(),
+				);
+			}
+
+			commands.entity(tilemap).push_children(&splatters);
+
+			commands.entity(enemy).despawn_recursive();
+
+			let index = enemies.iter().position(|_enemy| *_enemy == enemy).unwrap();
+			enemies.remove(index);
+		}
 	}
 }

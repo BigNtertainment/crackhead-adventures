@@ -117,7 +117,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 									TextStyle {
 										font: roboto_font.0.clone(),
 										font_size: 32.0,
-										color: Color::BLACK.into()
+										color: Color::BLACK
 									}
 								));
 						});
@@ -144,7 +144,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 									TextStyle {
 										font: roboto_font.0.clone(),
 										font_size: 32.0,
-										color: Color::BLACK.into()
+										color: Color::BLACK
 									}
 								));
 						});
