@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<tileset version="1.9" tiledversion="1.9.1" name="tileset" tilewidth="50" tileheight="50" tilecount="25" columns="0">
+<tileset version="1.9" tiledversion="1.9.1" name="tileset" tilewidth="50" tileheight="50" tilecount="34" columns="0">
  <grid orientation="orthogonal" width="1" height="1"/>
  <tile id="2">
   <image width="50" height="50" source="../img/player.png"/>
@@ -75,5 +75,32 @@
  </tile>
  <tile id="28">
   <image width="50" height="50" source="../img/shells.png"/>
+ </tile>
+ <tile id="29">
+  <image width="50" height="50" source="../img/grass_1.png"/>
+ </tile>
+ <tile id="30">
+  <image width="50" height="50" source="../img/grass_2.png"/>
+ </tile>
+ <tile id="31">
+  <image width="50" height="50" source="../img/grass_3.png"/>
+ </tile>
+ <tile id="32">
+  <image width="50" height="50" source="../img/flowers_2.png"/>
+ </tile>
+ <tile id="33">
+  <image width="50" height="50" source="../img/flowers_3.png"/>
+ </tile>
+ <tile id="34">
+  <image width="50" height="50" source="../img/flowers_4.png"/>
+ </tile>
+ <tile id="35">
+  <image width="50" height="50" source="../img/flowers_1.png"/>
+ </tile>
+ <tile id="36">
+  <image width="50" height="50" source="../img/flowers_5.png"/>
+ </tile>
+ <tile id="37">
+  <image width="50" height="50" source="../img/flowers_6.png"/>
  </tile>
 </tileset>

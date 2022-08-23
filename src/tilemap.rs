@@ -268,6 +268,19 @@ fn load_level(
 														flip_y
 													))
 												},
+												5 => {
+													// Details layer
+													commands.spawn_bundle(SpriteBundle {
+														transform: Transform::from_translation(tile_pos.extend(20.0)),
+														sprite: Sprite {
+															flip_x,
+															flip_y,
+															..Default::default()
+														},
+														texture: textures.get(&image_source, &asset_server),
+														..Default::default()
+													})
+												},
 												_ => {
 													panic!("Too much layers in the level file");
 												}
