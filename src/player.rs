@@ -1,4 +1,3 @@
-use std::f32::consts::PI;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -8,10 +7,9 @@ use bevy_rapier2d::prelude::*;
 use bevy_kira_audio::prelude::*;
 
 use rand::prelude::*;
-use rand::seq::SliceRandom;
 
+use crate::bullet::{Bullet, BulletBundle, BulletTexture};
 use crate::cocaine::Cocaine;
-use crate::enemy::{Enemy, EnemyBodyBundle, EnemyTextures};
 use crate::tilemap::{Tile, Tilemap};
 use crate::unit::{Effect, Health, Inventory, Movement, Shooting};
 use crate::HEIGHT;
@@ -22,7 +20,6 @@ mod ui;
 
 use ui::{drop_ui, load_font, ui_setup, update_ui};
 
-pub const WEAPON_RANGE: f32 = 400.0;
 pub const WEAPON_COOLDOWN: f32 = 0.5;
 pub const SMALL_POWERUP_DURATION: f32 = 5.0;
 pub const BIG_POWERUP_DURATION: f32 = 5.0;
@@ -42,7 +39,11 @@ impl Plugin for PlayerPlugin {
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
-					.with_system(camera_follow.label("camera_follow_player").after("player_movement"))
+					.with_system(
+						camera_follow
+							.label("camera_follow_player")
+							.after("player_movement"),
+					)
 					.with_system(player_aim.label("player_aim").after("player_movement"))
 					.with_system(player_shoot.after("player_aim"))
 					.with_system(damage_yourself)
@@ -234,18 +235,15 @@ struct ShotSound(Handle<AudioSource>);
 
 fn player_shoot(
 	mut commands: Commands,
-	mut player_query: Query<(Entity, &Transform, &mut Shooting), With<Player>>,
-	enemies_query: Query<(Entity, &Transform), With<Enemy>>,
+	mut player_query: Query<(&Transform, &mut Shooting), With<Player>>,
 	world_query: Query<Entity, With<Tilemap>>,
-	rapier_context: Res<RapierContext>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
-	window: Res<Windows>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>,
-	enemy_textures: Res<EnemyTextures>,
+	bullet_texture: Res<BulletTexture>,
 ) {
-	let (player_entity, player_transform, mut shooting) = player_query.single_mut();
+	let (player_transform, mut shooting) = player_query.single_mut();
 	let world = world_query.single();
 
 	shooting.cooldown.tick(time.delta());
@@ -254,79 +252,38 @@ fn player_shoot(
 		return;
 	}
 
-	let window_size = Vec2::new(WIDTH, HEIGHT);
+	if buttons.just_pressed(MouseButton::Left) {
+		// Spawn the bullets
+		let mut bullets = Vec::new();
 
-	if let Some(target) = window.iter().next().unwrap().cursor_position() {
-		let target = target * window.iter().next().unwrap().scale_factor() as f32;
-		let target = target - window_size / 2.0;
+		for i in 1..5 {
+			let mut bullet_transform = player_transform.with_translation(
+				player_transform.translation + player_transform.up() * 50.0
+			);
 
-		let ray_origin = player_transform.translation.truncate();
-		let ray_direction = target.normalize();
-		let max_time_of_impact = WEAPON_RANGE;
-		let solid = true;
-		let filter = QueryFilter::default().exclude_collider(player_entity);
+			bullet_transform.rotate_z((i - 2) as f32 * (0.02 + random::<f32>() * 0.01));
 
-		if buttons.just_pressed(MouseButton::Left) {
-			if let Some((entity, _toi)) = rapier_context.cast_ray(
-				ray_origin,
-				ray_direction,
-				max_time_of_impact,
-				solid,
-				filter,
-			) {
-				for (enemy, enemy_transform) in enemies_query.iter() {
-					if entity.id() == enemy.id() {
-						commands.entity(entity).despawn_recursive();
-
-						// Spawn the enemy body
-						let body = commands.spawn_bundle(EnemyBodyBundle {
-							sprite_bundle: SpriteBundle {
-								transform: Transform::from_translation(enemy_transform.translation)
-									.with_rotation(Quat::from_rotation_z(
-										rand::random::<f32>() * 2.0 * PI,
-									)),
-								texture: enemy_textures.body.clone(),
-								..Default::default()
-							},
-						}).id();
-
-						commands.entity(world).push_children(&[body]);
-
-						// Spawn a few blood splatters
-						let temp: Vec<u32> = (0..4).collect();
-
-						let mut splatters = Vec::new();
-
-						for _ in 0..(*temp.choose(&mut rand::thread_rng()).unwrap()) {
-							splatters.push(commands.spawn_bundle(EnemyBodyBundle {
-								sprite_bundle: SpriteBundle {
-									transform: Transform::from_translation(
-										enemy_transform.translation
-											+ Vec3::new(
-												rand::random::<f32>() * 60.0 - 30.0,
-												rand::random::<f32>() * 60.0 - 30.0,
-												-10.0,
-											),
-									)
-									.with_rotation(
-										Quat::from_rotation_z(rand::random::<f32>() * 2.0 * PI),
-									),
-									texture: enemy_textures.blood_splatter.clone(),
-									..Default::default()
-								},
-							}).id());
-						}
-
-						commands.entity(world).push_children(&splatters);
-					}
-				}
-			}
-
-			audio.play(shot_sound.0.clone()).with_volume(0.15);
-
-			// Reset the cooldown timer
-			shooting.cooldown.reset();
+			bullets.push(
+				commands
+					.spawn_bundle(BulletBundle {
+						sprite_bundle: SpriteBundle {
+							transform: bullet_transform,
+							texture: bullet_texture.clone(),
+							..Default::default()
+						},
+						bullet: Bullet { speed: 2000.0 },
+						..Default::default()
+					})
+					.id(),
+			);
 		}
+
+		commands.entity(world).push_children(&bullets);
+
+		audio.play(shot_sound.0.clone()).with_volume(0.15);
+
+		// Reset the cooldown timer
+		shooting.cooldown.reset();
 	}
 }
 

@@ -12,11 +12,11 @@
             "expandedGroupLayers": [
                 3
             ],
-            "scale": 0.75,
+            "scale": 0.5,
             "selectedLayer": 1,
             "viewCenter": {
-                "x": 472,
-                "y": 105.33333333333337
+                "x": 808,
+                "y": -92
             }
         },
         "tileset.tsx": {

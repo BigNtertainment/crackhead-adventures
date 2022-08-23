@@ -13,6 +13,7 @@ mod unit;
 mod player;
 mod enemy;
 mod cocaine;
+mod bullet;
 mod debug;
 mod tilemap;
 mod fonts;
@@ -22,6 +23,7 @@ mod game_over;
 mod crosshair;
 mod enemy_nav_mesh;
 
+use bullet::BulletPlugin;
 use button::ButtonPlugin;
 use crosshair::CrosshairPlugin;
 use enemy::EnemyPlugin;
@@ -67,6 +69,7 @@ fn main() {
         .add_plugin(TileMapPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(EnemyPlugin)
+        .add_plugin(BulletPlugin)
         .add_plugin(MainMenuPlugin)
         .add_plugin(GameOverPlugin)
         .add_plugin(CrosshairPlugin)
