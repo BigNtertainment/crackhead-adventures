@@ -19,9 +19,11 @@ mod fonts;
 mod button;
 mod main_menu;
 mod game_over;
+mod crosshair;
 mod enemy_nav_mesh;
 
 use button::ButtonPlugin;
+use crosshair::CrosshairPlugin;
 use enemy::EnemyPlugin;
 use fonts::FontPlugin;
 use main_menu::MainMenuPlugin;
@@ -67,6 +69,7 @@ fn main() {
         .add_plugin(EnemyPlugin)
         .add_plugin(MainMenuPlugin)
         .add_plugin(GameOverPlugin)
+        .add_plugin(CrosshairPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(DebugLinesPlugin::default())
 

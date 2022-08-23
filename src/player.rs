@@ -42,7 +42,7 @@ impl Plugin for PlayerPlugin {
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
-					.with_system(camera_follow.after("player_movement"))
+					.with_system(camera_follow.label("camera_follow_player").after("player_movement"))
 					.with_system(player_aim.label("player_aim").after("player_movement"))
 					.with_system(player_shoot.after("player_aim"))
 					.with_system(damage_yourself)
