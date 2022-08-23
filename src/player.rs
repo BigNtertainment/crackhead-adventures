@@ -8,8 +8,9 @@ use bevy_kira_audio::prelude::*;
 
 use rand::prelude::*;
 
-use crate::bullet::{Bullet, BulletBundle, BulletTexture};
+use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
+use crate::enemy::Enemy;
 use crate::tilemap::{Tile, Tilemap};
 use crate::unit::{Effect, Health, Inventory, Movement, Shooting};
 use crate::HEIGHT;
@@ -47,6 +48,7 @@ impl Plugin for PlayerPlugin {
 					.with_system(player_aim.label("player_aim").after("player_movement"))
 					.with_system(player_shoot.after("player_aim"))
 					.with_system(damage_yourself)
+					.with_system(get_shot)
 					.with_system(update_ui)
 					.with_system(pick_up_cocaine)
 					.with_system(craft_magic_dust)
@@ -118,6 +120,7 @@ impl Tile for PlayerBundle {
 
 fn player_movement(
 	mut player_query: Query<(Entity, &Movement, &mut Transform, &Collider), With<Player>>,
+	enemy_query: Query<Entity, (With<Enemy>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
 	rapier_context: Res<RapierContext>,
@@ -126,6 +129,8 @@ fn player_movement(
 		.iter_mut()
 		.next()
 		.expect("Player not found in the scene!");
+
+	let enemies: Vec<Entity> = enemy_query.iter().collect();
 
 	let mut direction = Vec3::new(0.0, 0.0, 0.0);
 
@@ -151,7 +156,10 @@ fn player_movement(
 		let rotation = 0.0; // transform.rotation.z;
 		let direction = direction.normalize().truncate();
 		let max_time_of_impact = movement.speed * TILE_SIZE * time.delta_seconds();
-		let filter = QueryFilter::default().exclude_collider(player_entity);
+
+		let predicate = |entity| !enemies.contains(&entity);
+
+		let filter = QueryFilter::default().exclude_collider(player_entity).predicate(&predicate);
 
 		let movement_vector = Vec2::new(
 			if let Some((_, hit)) = rapier_context.cast_shape(
@@ -204,7 +212,7 @@ fn damage_yourself(
 ) {
 	let mut player_health = player_query.single_mut();
 
-	if keyboard.just_pressed(KeyCode::Space) {
+	if cfg!(debug_assertions) && keyboard.just_pressed(KeyCode::Space) {
 		if player_health.take_damage(rand::thread_rng().gen::<f32>() * 10.0 + 10.0) {
 			state
 				.set(GameState::GameOver)
@@ -258,7 +266,7 @@ fn player_shoot(
 
 		for i in 1..5 {
 			let mut bullet_transform = player_transform.with_translation(
-				player_transform.translation + player_transform.up() * 50.0
+				player_transform.translation + player_transform.up() * TILE_SIZE
 			);
 
 			bullet_transform.rotate_z((i - 2) as f32 * (0.02 + random::<f32>() * 0.01));
@@ -417,6 +425,26 @@ fn craft_magic_dust(
 	if keyboard.just_pressed(KeyCode::T) {
 		if inventory.subtract_small_powerup(3) {
 			inventory.add_big_powerup(1);
+		}
+	}
+}
+
+fn get_shot(
+	mut player_query: Query<(Entity, &mut Health), With<Player>>,
+	mut shot_events: EventReader<ShotEvent>,
+	mut state: ResMut<State<GameState>>,
+) {
+	let (player, mut health) = player_query.single_mut();
+
+	for shot in shot_events.iter() {
+		let entity = shot.0;
+
+		if entity != player {
+			continue;
+		}
+
+		if health.take_damage(25.0 + random::<f32>() * 10.0) {
+			if state.set(GameState::GameOver).is_err() {}
 		}
 	}
 }

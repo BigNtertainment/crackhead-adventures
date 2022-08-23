@@ -6,17 +6,18 @@ use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioControl, AudioSource};
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
+use rand::random;
 use rand::seq::SliceRandom;
 
-use crate::bullet::ShotEvent;
+use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
-use crate::unit::{Health, Movement, Shooting};
+use crate::unit::{Movement, Shooting};
 use crate::{GameState, TILE_SIZE};
 
 pub const ENEMY_SIGHT: f32 = 600.0;
-pub const SHOCK_DURATION: f32 = 0.75;
+pub const SHOCK_DURATION: f32 = 0.3;
 
 pub struct EnemyPlugin;
 
@@ -136,16 +137,19 @@ enum EnemyAiState {
 }
 
 fn update_enemy_ai(
+	mut commands: Commands,
 	mut enemies: Query<(Entity, &mut Transform, &Movement, &mut Shooting, &mut Enemy)>,
-	mut player: Query<(Entity, &Transform, &mut Health), (With<Player>, Without<Enemy>)>,
+	mut player: Query<(Entity, &Transform), (With<Player>, Without<Enemy>)>,
+	tilemap: Query<Entity, (With<Tilemap>, Without<Player>, Without<Enemy>)>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
-	mut state: ResMut<State<GameState>>,
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>,
+	bullet_texture: Res<BulletTexture>,
 ) {
-	let (player, player_transform, mut player_health) = player.single_mut();
+	let (player, player_transform) = player.single_mut();
+	let tilemap = tilemap.single();
 
 	let player_position = player_transform.translation;
 
@@ -159,7 +163,9 @@ fn update_enemy_ai(
 			.normalize();
 		let max_time_of_impact = ENEMY_SIGHT;
 		let solid = true;
-		let filter = QueryFilter::default().exclude_collider(entity);
+		let filter = QueryFilter::default()
+			.exclude_collider(entity)
+			.exclude_sensors();
 
 		if let Some((entity, _)) =
 			rapier_context.cast_ray(ray_origin, ray_direction, max_time_of_impact, solid, filter)
@@ -186,9 +192,24 @@ fn update_enemy_ai(
 				enemy.shock_timer.tick(time.delta());
 
 				if enemy.shock_timer.finished() && shooting.cooldown.finished() {
-					if player_health.take_damage(rand::random::<f32>() * 5.0 + 20.0) {
-						if state.set(GameState::GameOver).is_err() {}
-					}
+					let mut bullet_transform = transform
+						.with_translation(transform.translation + transform.up() * TILE_SIZE);
+
+					bullet_transform.rotate_z(random::<f32>() * 0.05);
+
+					let bullet = commands
+						.spawn_bundle(BulletBundle {
+							sprite_bundle: SpriteBundle {
+								transform: bullet_transform,
+								texture: bullet_texture.clone(),
+								..Default::default()
+							},
+							bullet: Bullet { speed: 2000.0 },
+							..Default::default()
+						})
+						.id();
+
+					commands.entity(tilemap).push_children(&[bullet]);
 
 					audio.play(shot_sound.0.clone()).with_volume(0.1);
 
