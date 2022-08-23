@@ -212,7 +212,7 @@ fn load_level(
 											.as_ref()
 											.unwrap()
 											.source
-											.strip_prefix("assets/level\\..")
+											.strip_prefix("assets")
 											.expect("what")
 											.to_path_buf();
 

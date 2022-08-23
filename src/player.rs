@@ -20,7 +20,7 @@ use crate::{GameState, TILE_SIZE};
 
 mod ui;
 
-use ui::{drop_ui, load_font, ui_setup, update_ui};
+use ui::{drop_ui, ui_setup, update_ui};
 
 pub const WEAPON_RANGE: f32 = 400.0;
 pub const WEAPON_COOLDOWN: f32 = 0.5;
@@ -36,7 +36,6 @@ impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<Movement>()
 			.add_startup_system(load_shot_sound)
-			.add_startup_system(load_font)
 			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup))
 			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui))
 			.add_system_set(
@@ -91,7 +90,7 @@ impl Default for PlayerBundle {
 				effect: None,
 				duration: Timer::from_seconds(0.0, false),
 			},
-			rapier_collider: Collider::cuboid(TILE_SIZE / 2.0, TILE_SIZE / 2.0),
+			rapier_collider: Collider::ball(TILE_SIZE / 2.0),
 		}
 	}
 }

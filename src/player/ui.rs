@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
-use crate::unit::{Health, Inventory};
+use crate::{unit::{Health, Inventory}, fonts::PaintFont};
 
 use super::{EffectData, Player};
+
 
 #[derive(Component)]
 pub struct PlayerUi;
@@ -22,7 +23,6 @@ pub struct PowerupBarContainer;
 #[derive(Component)]
 pub struct PowerupBar;
 
-pub struct PaintFont(Handle<Font>);
 
 pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
     let font = &font.0;
@@ -342,8 +342,4 @@ pub fn update_ui(
     } else {
         powerup_bar_container.display = Display::None;
     }
-}
-
-pub fn load_font(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(PaintFont(asset_server.load("floyd.ttf")));
 }
