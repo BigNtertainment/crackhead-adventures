@@ -136,13 +136,25 @@ enum EnemyAiState {
 	},
 }
 
+fn is_on_screen(
+    point: Vec2,
+    window: &Window,
+    camera: &Transform,
+) -> bool {
+    let screen_position = point - camera.translation.truncate();
+
+	screen_position.x.abs() < window.width() / 2.0 && screen_position.y.abs() < window.height() / 2.0
+}
+
 fn update_enemy_ai(
 	mut commands: Commands,
 	mut enemies: Query<(Entity, &mut Transform, &Movement, &mut Shooting, &mut Enemy)>,
 	mut player: Query<(Entity, &Transform), (With<Player>, Without<Enemy>)>,
 	tilemap: Query<Entity, (With<Tilemap>, Without<Player>, Without<Enemy>)>,
+	camera: Query<&Transform, (With<Camera>, Without<Player>, Without<Enemy>, Without<Tilemap>)>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
+	windows: Res<Windows>,
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotSound>,
@@ -150,6 +162,7 @@ fn update_enemy_ai(
 ) {
 	let (player, player_transform) = player.single_mut();
 	let tilemap = tilemap.single();
+	let camera = camera.single();
 
 	let player_position = player_transform.translation;
 
@@ -188,35 +201,38 @@ fn update_enemy_ai(
 					Vec2::Y.angle_between((player_position - transform.translation).truncate()),
 				);
 
-				// Don't shoot immediately
-				enemy.shock_timer.tick(time.delta());
-
-				if enemy.shock_timer.finished() && shooting.cooldown.finished() {
-					let mut bullet_transform = transform
-						.with_translation(transform.translation + transform.up() * TILE_SIZE);
-
-					bullet_transform.rotate_z(random::<f32>() * 0.05);
-
-					let bullet = commands
-						.spawn_bundle(BulletBundle {
-							sprite_bundle: SpriteBundle {
-								transform: bullet_transform,
-								texture: bullet_texture.clone(),
+				// Don't shoot when off-screen
+				if is_on_screen(transform.translation.truncate(), windows.primary(), camera) {
+					// Don't shoot immediately
+					enemy.shock_timer.tick(time.delta());
+	
+					if enemy.shock_timer.finished() && shooting.cooldown.finished() {
+						let mut bullet_transform = transform
+							.with_translation(transform.translation + transform.up() * TILE_SIZE);
+	
+						bullet_transform.rotate_z(random::<f32>() * 0.05);
+	
+						let bullet = commands
+							.spawn_bundle(BulletBundle {
+								sprite_bundle: SpriteBundle {
+									transform: bullet_transform,
+									texture: bullet_texture.clone(),
+									..Default::default()
+								},
+								bullet: Bullet { speed: 2000.0 },
 								..Default::default()
-							},
-							bullet: Bullet { speed: 2000.0 },
-							..Default::default()
-						})
-						.id();
-
-					commands.entity(tilemap).push_children(&[bullet]);
-
-					audio.play(shot_sound.0.clone()).with_volume(0.1);
-
-					shooting.cooldown.reset();
+							})
+							.id();
+	
+						commands.entity(tilemap).push_children(&[bullet]);
+	
+						audio.play(shot_sound.0.clone()).with_volume(0.1);
+	
+						shooting.cooldown.reset();
+					}
+	
+					continue;
 				}
-
-				continue;
 			}
 		}
 
@@ -229,18 +245,20 @@ fn update_enemy_ai(
 		{
 			let target = path[*current];
 
-			let movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
+			let mut movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
 
-			// If the enemy reached its destination
-			if movement_vector.length() <= 5.0 {
+			while movement_vector.length() <= 5.0 {
 				*current += 1;
 
 				if *current == path.len() {
 					enemy.ai_state = EnemyAiState::Idle;
+					break;
 				}
 
-				continue;
-			}
+				let target = path[*current];
+
+				movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
+			};
 
 			let direction = movement_vector.normalize_or_zero();
 
