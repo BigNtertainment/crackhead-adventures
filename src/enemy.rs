@@ -219,7 +219,7 @@ fn update_enemy_ai(
 	
 						commands.entity(tilemap).push_children(&[bullet]);
 	
-						audio.play(shot_sound.0.clone()).with_volume(0.1);
+						audio.play(shot_sound.clone()).with_volume(0.1);
 	
 						shooting.cooldown.reset();
 					}

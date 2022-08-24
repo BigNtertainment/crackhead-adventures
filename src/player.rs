@@ -8,7 +8,9 @@ use bevy_kira_audio::prelude::*;
 
 use rand::prelude::*;
 
-use crate::audio::ShotgunSound;
+use rand::seq::SliceRandom;
+
+use crate::audio::{ShotgunSound, FootstepSounds};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
@@ -34,8 +36,8 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<Movement>()
-			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup))
-			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui))
+			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup).with_system(setup_footstep_timer))
+			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui).with_system(drop_footstep_timer))
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
@@ -117,12 +119,26 @@ impl Tile for PlayerBundle {
 	}
 }
 
+#[derive(Deref, DerefMut)]
+struct FootstepTimer(pub Timer);
+
+fn setup_footstep_timer(mut commands: Commands) {
+	commands.insert_resource(FootstepTimer(Timer::from_seconds(0.4, false)));
+}
+
+fn drop_footstep_timer(mut commands: Commands) {
+	commands.remove_resource::<FootstepTimer>();
+}
+
 fn player_movement(
 	mut player_query: Query<(Entity, &Movement, &mut Transform, &Collider), With<Player>>,
 	enemy_query: Query<Entity, (With<Enemy>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
+	audio: Res<Audio>,
 	rapier_context: Res<RapierContext>,
+	footstep_sounds: Res<FootstepSounds>,
+	mut footstep_timer: ResMut<FootstepTimer>
 ) {
 	let (player_entity, movement, mut transform, rapier_collider) = player_query
 		.iter_mut()
@@ -189,6 +205,12 @@ fn player_movement(
 			.y,
 		);
 
+		footstep_timer.tick(time.delta());
+		if movement_vector != Vec2::ZERO && footstep_timer.finished() {
+			audio.play(footstep_sounds.choose(&mut rand::thread_rng()).expect("No footstep sounds found.").clone());
+			footstep_timer.reset();
+		}
+		
 		transform.translation += movement_vector.extend(0.0);
 	}
 }
@@ -280,7 +302,7 @@ fn player_shoot(
 
 		commands.entity(world).push_children(&bullets);
 
-		audio.play(shot_sound.0.clone()).with_volume(0.08);
+		audio.play(shot_sound.clone()).with_volume(0.05);
 
 		// Reset the cooldown timer
 		shooting.cooldown.reset();
