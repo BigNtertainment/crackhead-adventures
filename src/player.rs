@@ -29,8 +29,7 @@ use ui::{drop_ui, load_font, ui_setup, update_ui};
 
 use self::effect::{BigPowerup, EffectData, SmallPowerup};
 use self::post_processing::{
-	clean_post_processing, BigPowerupMaterial,
-	PlayerPostProcessingPlugin, SmallPowerupMaterial,
+	clean_post_processing, BigPowerupMaterial, PlayerPostProcessingPlugin, SmallPowerupMaterial,
 };
 
 pub const WEAPON_COOLDOWN: f32 = 0.5;
@@ -46,6 +45,7 @@ impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_plugin(PlayerPostProcessingPlugin)
 			.register_type::<Movement>()
+			.insert_resource(ActiveMaterial(None))
 			.add_startup_system(load_shot_sound)
 			.add_startup_system(load_font)
 			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup))
@@ -65,7 +65,8 @@ impl Plugin for PlayerPlugin {
 					.with_system(update_ui)
 					.with_system(pick_up_cocaine)
 					.with_system(craft_magic_dust)
-					.with_system(use_powerup),
+					.with_system(use_powerup)
+					.with_system(update_powerup_material),
 			);
 	}
 }
@@ -309,6 +310,15 @@ fn player_shoot(
 	}
 }
 
+// It actually doesn't make any sense but it's the fastest (and also hackiest) way to do this
+enum PowerupMaterial {
+	SmallPowerup(Handle<SmallPowerupMaterial>),
+	BigPowerup(Handle<BigPowerupMaterial>),
+}
+
+#[derive(Deref, DerefMut)]
+struct ActiveMaterial(Option<PowerupMaterial>);
+
 fn use_powerup(
 	mut commands: Commands,
 	mut player_query: Query<
@@ -319,6 +329,7 @@ fn use_powerup(
 	time: Res<Time>,
 	post_processing_pass_layer: Res<PostProcessingLayer>,
 	screen: Res<ScreenRes>,
+	mut active_effect: ResMut<ActiveMaterial>,
 	source_image: Res<CameraRenderImage>,
 	mut default_materials: ResMut<Assets<DefaultMaterial>>,
 	mut small_powerup_materials: ResMut<Assets<SmallPowerupMaterial>>,
@@ -340,6 +351,8 @@ fn use_powerup(
 			&source_image,
 			&mut default_materials,
 		);
+
+		active_effect.0 = None;
 	}
 
 	// Don't take more drugs if you're high already
@@ -356,16 +369,21 @@ fn use_powerup(
 			SMALL_POWERUP_DURATION,
 		);
 
+		let powerup = small_powerup_materials.add(SmallPowerupMaterial {
+			source_image: source_image.0.clone(),
+			time: 0,
+		});
+
 		// Add a post-processing effect
 		update_post_processing_effects(
 			&mut commands,
 			&screen,
-			small_powerup_materials.add(SmallPowerupMaterial {
-				source_image: source_image.0.clone(),
-			}),
+			powerup.clone(),
 			&mut meshes,
 			&post_processing_pass_layer,
 		);
+
+		active_effect.0 = Some(PowerupMaterial::SmallPowerup(powerup));
 	}
 	// Big powerup is under R
 	else if keyboard.just_pressed(KeyCode::R) && inventory.subtract_big_powerup(1) {
@@ -376,16 +394,46 @@ fn use_powerup(
 			BIG_POWERUP_DURATION,
 		);
 
+		let powerup = big_powerup_materials.add(BigPowerupMaterial {
+			source_image: source_image.0.clone(),
+			time: 0,
+		});
+
 		// Add a post-processing effect
 		update_post_processing_effects(
 			&mut commands,
 			&screen,
-			big_powerup_materials.add(BigPowerupMaterial {
-				source_image: source_image.0.clone(),
-			}),
+			powerup.clone(),
 			&mut meshes,
 			&post_processing_pass_layer,
 		);
+
+		active_effect.0 = Some(PowerupMaterial::BigPowerup(powerup));
+	}
+}
+
+fn update_powerup_material(
+	mut active_effect: ResMut<ActiveMaterial>,
+	mut small_powerup_materials: ResMut<Assets<SmallPowerupMaterial>>,
+	mut big_powerup_materials: ResMut<Assets<BigPowerupMaterial>>,
+	time: Res<Time>,
+) {
+	match &mut active_effect.0 {
+		Some(powerup) => {
+			match powerup {
+				PowerupMaterial::SmallPowerup(powerup) => {
+					let mut powerup = small_powerup_materials.get_mut(powerup).unwrap();
+
+					powerup.time = (time.delta_seconds_f64() * 1000.0).floor() as u32;
+				},
+				PowerupMaterial::BigPowerup(powerup) => {
+					let mut powerup = big_powerup_materials.get_mut(powerup).unwrap();
+
+					powerup.time = (time.delta_seconds_f64() * 1000.0).floor() as u32;
+				}
+			}
+		},
+		None => (),
 	}
 }
 

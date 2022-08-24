@@ -61,6 +61,8 @@ pub struct SmallPowerupMaterial {
 	#[texture(0)]
 	#[sampler(1)]
 	pub source_image: Handle<Image>,
+	#[uniform(2)]
+	pub time: u32,
 }
 
 impl Material2d for SmallPowerupMaterial {
@@ -77,6 +79,8 @@ pub struct BigPowerupMaterial {
 	#[texture(0)]
 	#[sampler(1)]
 	pub source_image: Handle<Image>,
+	#[uniform(2)]
+	pub time: u32,
 }
 
 impl Material2d for BigPowerupMaterial {
