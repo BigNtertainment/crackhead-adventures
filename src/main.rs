@@ -22,6 +22,7 @@ mod main_menu;
 mod game_over;
 mod crosshair;
 mod enemy_nav_mesh;
+mod audio;
 
 use bullet::BulletPlugin;
 use button::ButtonPlugin;
@@ -33,6 +34,7 @@ use player::PlayerPlugin;
 use debug::DebugPlugin;
 use tilemap::TileMapPlugin;
 use game_over::GameOverPlugin;
+use audio::AudioLoadPlugin;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum GameState {
@@ -64,6 +66,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(AudioPlugin)
+        .add_plugin(AudioLoadPlugin)
         .add_plugin(FontPlugin)
         .add_plugin(ButtonPlugin)
         .add_plugin(TileMapPlugin)

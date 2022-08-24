@@ -9,6 +9,7 @@ use navmesh::NavVec3;
 use rand::random;
 use rand::seq::SliceRandom;
 
+use crate::audio::{ShotgunSound, EnemyShotSound};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
@@ -23,7 +24,7 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_startup_system(load_shot_sound)
+		app
 			.add_startup_system(load_enemy_textures)
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
@@ -100,14 +101,6 @@ pub struct EnemyBodyBundle {
 	pub sprite_bundle: SpriteBundle,
 }
 
-fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let sound = asset_server.load("shot.wav");
-
-	commands.insert_resource(ShotSound(sound));
-}
-
-struct ShotSound(Handle<AudioSource>);
-
 fn load_enemy_textures(
 	mut commands: Commands,
 	mut textures: ResMut<TexturesMemo>,
@@ -157,7 +150,7 @@ fn update_enemy_ai(
 	windows: Res<Windows>,
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
-	shot_sound: Res<ShotSound>,
+	shot_sound: Res<EnemyShotSound>,
 	bullet_texture: Res<BulletTexture>,
 ) {
 	let (player, player_transform) = player.single_mut();

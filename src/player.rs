@@ -8,6 +8,7 @@ use bevy_kira_audio::prelude::*;
 
 use rand::prelude::*;
 
+use crate::audio::ShotgunSound;
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
@@ -33,7 +34,6 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<Movement>()
-			.add_startup_system(load_shot_sound)
 			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup))
 			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui))
 			.add_system_set(
@@ -233,13 +233,6 @@ fn player_aim(mut player_query: Query<&mut Transform, With<Player>>, window: Res
 	}
 }
 
-fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let sound = asset_server.load("shot.wav");
-
-	commands.insert_resource(ShotSound(sound));
-}
-struct ShotSound(Handle<AudioSource>);
-
 fn player_shoot(
 	mut commands: Commands,
 	mut player_query: Query<(&Transform, &mut Shooting), With<Player>>,
@@ -247,7 +240,7 @@ fn player_shoot(
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
 	audio: Res<Audio>,
-	shot_sound: Res<ShotSound>,
+	shot_sound: Res<ShotgunSound>,
 	bullet_texture: Res<BulletTexture>,
 ) {
 	let (player_transform, mut shooting) = player_query.single_mut();
@@ -287,7 +280,7 @@ fn player_shoot(
 
 		commands.entity(world).push_children(&bullets);
 
-		audio.play(shot_sound.0.clone()).with_volume(0.15);
+		audio.play(shot_sound.0.clone()).with_volume(0.08);
 
 		// Reset the cooldown timer
 		shooting.cooldown.reset();
