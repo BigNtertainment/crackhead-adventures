@@ -1,3 +1,4 @@
+
 use bevy::{
 	prelude::*,
 	reflect::TypeUuid,
@@ -7,6 +8,7 @@ use bevy::{
 	},
 	sprite::{Material2d, Material2dPlugin, MaterialMesh2dBundle},
 };
+use rand::distributions::uniform;
 
 pub struct PostProcessingPlugin;
 
@@ -25,7 +27,7 @@ fn setup(
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut post_processing_materials: ResMut<Assets<PostProcessingMaterial>>,
     mut images: ResMut<Assets<Image>>,
-	mut windows: ResMut<Windows>
+	mut windows: ResMut<Windows>,
 ) {
     let window = windows.get_primary_mut().unwrap();
     let size = Extent3d {
@@ -76,10 +78,16 @@ fn setup(
 		size.height as f32,
 	))));
 
+	let strength:f32 = 1.0;
+	println!("{}", strength);
+
 	// This material has the texture that has been rendered.
 	let material_handle = post_processing_materials.add(PostProcessingMaterial {
 		source_image: image_handle,
+		strength,
+		time: 0.0, 
 	});
+
 
 	// Post processing 2d quad, with material using the render texture done by the main camera, with a custom shader.
 	commands
@@ -118,6 +126,10 @@ struct PostProcessingMaterial {
 	#[texture(0)]
 	#[sampler(1)]
 	source_image: Handle<Image>,
+	#[uniform(2)]
+	strength: f32,
+	#[uniform(3)]
+	time: f32,
 }
 
 impl Material2d for PostProcessingMaterial {
