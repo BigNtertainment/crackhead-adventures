@@ -9,7 +9,7 @@ use navmesh::NavVec3;
 use rand::random;
 use rand::seq::SliceRandom;
 
-use crate::audio::{ShotgunSound, EnemyShotSound};
+use crate::audio::{ShotgunSound, EnemyShotSound, Screams};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
@@ -284,6 +284,8 @@ fn get_shot(
 	enemy_query: Query<Entity, With<Enemy>>,
 	mut shot_events: EventReader<ShotEvent>,
 	enemy_textures: Res<EnemyTextures>,
+	audio: Res<Audio>,
+	screams: Res<Screams>,
 ) {
 	let tilemap = tilemap_query.single();
 	let mut enemies: Vec<Entity> = enemy_query.iter().collect();
@@ -309,6 +311,8 @@ fn get_shot(
 				.id();
 
 			commands.entity(tilemap).push_children(&[body]);
+
+			audio.play(screams.choose(&mut rand::thread_rng()).expect("No scream sounds found.").clone()).with_volume(0.3);
 
 			// Spawn a few blood splatters
 			let temp: Vec<u32> = (0..4).collect();
