@@ -9,7 +9,7 @@ pub struct Movement {
 
 #[derive(Component)]
 pub struct Shooting {
-	pub cooldown: Timer
+	pub cooldown: Timer,
 }
 
 #[derive(Default, Reflect, Inspectable, Component)]
@@ -21,7 +21,10 @@ pub struct Health {
 
 impl Health {
 	pub fn new(max_health: f32) -> Self {
-		Self { health: max_health, max_health }
+		Self {
+			health: max_health,
+			max_health,
+		}
 	}
 
 	/// # Returns
@@ -33,7 +36,7 @@ impl Health {
 
 		self.health <= 0.0
 	}
-	
+
 	#[allow(unused)]
 	pub fn heal(&mut self, amount: f32) {
 		self.health += amount;
@@ -71,10 +74,13 @@ pub struct Inventory {
 #[allow(dead_code)]
 impl Inventory {
 	pub fn new() -> Self {
-		Self {small_powerups: 2, big_powerups: 2 }
+		Self {
+			small_powerups: 2,
+			big_powerups: 2,
+		}
 	}
 
-	pub fn get_small_powerup_quantity(&self) -> usize{
+	pub fn get_small_powerup_quantity(&self) -> usize {
 		self.small_powerups
 	}
 
@@ -91,7 +97,7 @@ impl Inventory {
 		self.small_powerups += amount;
 	}
 
-	pub fn get_big_powerup_quantity(&self) -> usize{
+	pub fn get_big_powerup_quantity(&self) -> usize {
 		self.big_powerups
 	}
 
