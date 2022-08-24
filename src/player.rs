@@ -12,7 +12,7 @@ use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
 use crate::tilemap::{Tile, Tilemap};
-use crate::unit::{Effect, Health, Inventory, Movement, Shooting};
+use crate::unit::{Effect, Health, Inventory, Movement, Shooting, ShootEvent};
 use crate::HEIGHT;
 use crate::WIDTH;
 use crate::{GameState, TILE_SIZE};
@@ -33,6 +33,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
 		app.register_type::<Movement>()
+			.add_event::<ShootEvent>()
 			.add_startup_system(load_shot_sound)
 			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup))
 			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui))
@@ -238,12 +239,14 @@ fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
 
 	commands.insert_resource(ShotSound(sound));
 }
+
 struct ShotSound(Handle<AudioSource>);
 
 fn player_shoot(
 	mut commands: Commands,
 	mut player_query: Query<(&Transform, &mut Shooting), With<Player>>,
 	world_query: Query<Entity, With<Tilemap>>,
+    mut event_shot: EventWriter<ShootEvent>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
 	audio: Res<Audio>,
@@ -288,6 +291,8 @@ fn player_shoot(
 		commands.entity(world).push_children(&bullets);
 
 		audio.play(shot_sound.0.clone()).with_volume(0.15);
+
+		event_shot.send(ShootEvent(player_transform.translation.truncate()));
 
 		// Reset the cooldown timer
 		shooting.cooldown.reset();

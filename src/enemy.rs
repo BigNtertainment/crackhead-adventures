@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioControl, AudioSource};
+use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
 use rand::random;
@@ -13,10 +14,11 @@ use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
-use crate::unit::{Movement, Shooting};
+use crate::unit::{Movement, ShootEvent, Shooting};
 use crate::{GameState, TILE_SIZE};
 
-pub const ENEMY_SIGHT: f32 = 600.0;
+pub const ENEMY_SIGHT: f32 = 12.0 * TILE_SIZE;
+pub const ENEMY_HEARING: f32 = 10.0 * TILE_SIZE;
 pub const SHOCK_DURATION: f32 = 0.3;
 
 pub struct EnemyPlugin;
@@ -27,7 +29,9 @@ impl Plugin for EnemyPlugin {
 			.add_startup_system(load_enemy_textures)
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
-					.with_system(update_enemy_ai)
+					.with_system(update_enemy_ai.label("update_enemy_ai"))
+					.with_system(alert_on_shot_sound)
+					.with_system(update_enemy_position.after("update_enemy_ai"))
 					.with_system(update_enemy_texture)
 					.with_system(get_shot),
 			);
@@ -134,24 +138,33 @@ enum EnemyAiState {
 		path: Option<Vec<NavVec3>>,
 		current: usize,
 	},
+	Combat {
+		player_position: Vec2,
+	},
 }
 
-fn is_on_screen(
-    point: Vec2,
-    window: &Window,
-    camera: &Transform,
-) -> bool {
-    let screen_position = point - camera.translation.truncate();
+fn is_on_screen(point: Vec2, window: &Window, camera: &Transform) -> bool {
+	let screen_position = point - camera.translation.truncate();
 
-	screen_position.x.abs() < window.width() / 2.0 && screen_position.y.abs() < window.height() / 2.0
+	screen_position.x.abs() < window.width() / 2.0
+		&& screen_position.y.abs() < window.height() / 2.0
 }
 
 fn update_enemy_ai(
 	mut commands: Commands,
-	mut enemies: Query<(Entity, &mut Transform, &Movement, &mut Shooting, &mut Enemy)>,
+	mut enemies: Query<(Entity, &mut Transform, &mut Shooting, &mut Enemy)>,
 	mut player: Query<(Entity, &Transform), (With<Player>, Without<Enemy>)>,
 	tilemap: Query<Entity, (With<Tilemap>, Without<Player>, Without<Enemy>)>,
-	camera: Query<&Transform, (With<Camera>, Without<Player>, Without<Enemy>, Without<Tilemap>)>,
+	camera: Query<
+		&Transform,
+		(
+			With<Camera>,
+			Without<Player>,
+			Without<Enemy>,
+			Without<Tilemap>,
+		),
+	>,
+	mut shoot_event: EventWriter<ShootEvent>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
 	windows: Res<Windows>,
@@ -164,16 +177,16 @@ fn update_enemy_ai(
 	let tilemap = tilemap.single();
 	let camera = camera.single();
 
-	let player_position = player_transform.translation;
+	let player_position = player_transform.translation.truncate();
 
-	for (entity, mut transform, movement, mut shooting, mut enemy) in enemies.iter_mut() {
+	for (entity, mut transform, mut shooting, mut enemy) in enemies.iter_mut() {
 		shooting.cooldown.tick(time.delta());
 
+		let position = transform.translation.truncate();
+
 		// Look if there is a direct line of sight to the player
-		let ray_origin = transform.translation.truncate();
-		let ray_direction = (player_position - transform.translation)
-			.truncate()
-			.normalize();
+		let ray_origin = position;
+		let ray_direction = (player_position - position).normalize();
 		let max_time_of_impact = ENEMY_SIGHT;
 		let solid = true;
 		let filter = QueryFilter::default()
@@ -185,33 +198,23 @@ fn update_enemy_ai(
 		{
 			if entity.id() == player.id() {
 				// The enemy can see the player
-				let path = nav_mesh
-					.get_nav_mesh()
-					.expect("The nav mesh has not been baked!")
-					.find_path(
-						transform.translation.to_array().into(),
-						player_position.to_array().into(),
-						navmesh::NavQuery::Closest,
-						navmesh::NavPathMode::Accuracy,
-					);
+				enemy.ai_state = EnemyAiState::Combat { player_position };
 
-				enemy.ai_state = EnemyAiState::Alert { path, current: 0 };
-
-				transform.rotation = Quat::from_rotation_z(
-					Vec2::Y.angle_between((player_position - transform.translation).truncate()),
-				);
+				transform.rotation =
+					Quat::from_rotation_z(Vec2::Y.angle_between(player_position - position));
 
 				// Don't shoot when off-screen
-				if is_on_screen(transform.translation.truncate(), windows.primary(), camera) {
+				if is_on_screen(position, windows.primary(), camera) {
 					// Don't shoot immediately
 					enemy.shock_timer.tick(time.delta());
-	
+
 					if enemy.shock_timer.finished() && shooting.cooldown.finished() {
+						// Shoot at the player
 						let mut bullet_transform = transform
 							.with_translation(transform.translation + transform.up() * TILE_SIZE);
-	
+
 						bullet_transform.rotate_z(random::<f32>() * 0.05);
-	
+
 						let bullet = commands
 							.spawn_bundle(BulletBundle {
 								sprite_bundle: SpriteBundle {
@@ -223,29 +226,79 @@ fn update_enemy_ai(
 								..Default::default()
 							})
 							.id();
-	
+
 						commands.entity(tilemap).push_children(&[bullet]);
-	
+
 						audio.play(shot_sound.0.clone()).with_volume(0.1);
-	
+
+						shoot_event.send(ShootEvent(position));
+
 						shooting.cooldown.reset();
 					}
-	
-					continue;
 				}
+			} else {
+				// Not in combat
+				if let EnemyAiState::Combat { player_position } = enemy.ai_state {
+					// When exiting combat
+					let path = nav_mesh
+						.get_nav_mesh()
+						.expect("The nav mesh has not been baked!")
+						.find_path(
+							transform.translation.to_array().into(),
+							player_position.to_array().into(),
+							navmesh::NavQuery::Closest,
+							navmesh::NavPathMode::Accuracy,
+						);
+
+					enemy.ai_state = EnemyAiState::Alert { path, current: 0 };
+				}
+
+				enemy.shock_timer.reset();
 			}
 		}
+	}
+}
 
-		enemy.shock_timer.reset();
+fn alert_on_shot_sound(
+	mut enemies: Query<(&Transform, &mut Enemy)>,
+	mut shot_events: EventReader<ShootEvent>,
+	nav_mesh: Res<EnemyNavMesh>,
+) {
+	for shot_event in shot_events.iter() {
+		for (enemy_transform, mut enemy) in enemies.iter_mut() {
+			let enemy_position = enemy_transform.translation.truncate();
 
+			if (enemy_position - shot_event.0).length() <= ENEMY_HEARING {
+				let path = nav_mesh
+					.get_nav_mesh()
+					.expect("The nav mesh has not been baked!")
+					.find_path(
+						enemy_position.to_array().into(),
+						shot_event.0.to_array().into(),
+						navmesh::NavQuery::Closest,
+						navmesh::NavPathMode::Accuracy,
+					);
+
+				enemy.ai_state = EnemyAiState::Alert { path, current: 0 };
+			}
+		}
+	}
+}
+
+fn update_enemy_position(
+	mut enemies: Query<(&mut Transform, &mut Enemy, &Movement)>,
+	time: Res<Time>,
+) {
+	for (mut transform, mut enemy, movement) in enemies.iter_mut() {
 		if let EnemyAiState::Alert {
 			path: Some(path),
 			current,
 		} = &mut enemy.ai_state
 		{
-			let target = path[*current];
+			let mut target = path[*current];
 
-			let mut movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
+			let mut movement_vector =
+				Vec2::new(target.x, target.y) - transform.translation.truncate();
 
 			while movement_vector.length() <= 5.0 {
 				*current += 1;
@@ -255,10 +308,10 @@ fn update_enemy_ai(
 					break;
 				}
 
-				let target = path[*current];
+				target = path[*current];
 
 				movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
-			};
+			}
 
 			let direction = movement_vector.normalize_or_zero();
 
@@ -279,7 +332,8 @@ fn update_enemy_texture(
 			EnemyAiState::Alert {
 				path: _,
 				current: _,
-			} => &textures.active,
+			}
+			| EnemyAiState::Combat { player_position: _ } => &textures.active,
 		});
 	}
 }

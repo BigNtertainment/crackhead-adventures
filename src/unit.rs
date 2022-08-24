@@ -12,6 +12,8 @@ pub struct Shooting {
 	pub cooldown: Timer
 }
 
+pub struct ShootEvent(pub Vec2);
+
 #[derive(Default, Reflect, Inspectable, Component)]
 #[reflect(Component)]
 pub struct Health {
