@@ -18,6 +18,7 @@ mod debug;
 mod tilemap;
 mod fonts;
 mod button;
+mod post_processing;
 mod main_menu;
 mod game_over;
 mod crosshair;
@@ -31,6 +32,7 @@ use fonts::FontPlugin;
 use main_menu::MainMenuPlugin;
 use player::PlayerPlugin;
 use debug::DebugPlugin;
+use post_processing::PostProcessingPlugin;
 use tilemap::TileMapPlugin;
 use game_over::GameOverPlugin;
 
@@ -39,11 +41,6 @@ pub enum GameState {
     MainMenu,
     Game,
     GameOver,
-}
-
-fn camera_setup(mut commands: Commands) {
-    commands
-        .spawn_bundle(Camera2dBundle::default());
 }
 
 fn main() {
@@ -64,6 +61,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(AudioPlugin)
+        .add_plugin(PostProcessingPlugin)
         .add_plugin(FontPlugin)
         .add_plugin(ButtonPlugin)
         .add_plugin(TileMapPlugin)
@@ -75,9 +73,6 @@ fn main() {
         .add_plugin(CrosshairPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(DebugLinesPlugin::default())
-
-        // Systems
-        .add_startup_system(camera_setup)
 
         .run();
 }

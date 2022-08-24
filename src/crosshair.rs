@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{GameState, HEIGHT, WIDTH};
+use crate::{GameState, HEIGHT, WIDTH, post_processing::MainCamera};
 
 pub struct CrosshairPlugin;
 
@@ -43,7 +43,7 @@ fn crosshair_setup(
 
 fn crosshair_update(
 	mut crosshair_query: Query<&mut Transform, With<Crosshair>>,
-	camera_query: Query<&Transform, (With<Camera>, Without<Crosshair>)>,
+	camera_query: Query<&Transform, (With<MainCamera>, Without<Crosshair>)>,
 	windows: Res<Windows>,
 ) {
 	let mut crosshair_transform = crosshair_query.single_mut();

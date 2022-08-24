@@ -11,6 +11,7 @@ use rand::prelude::*;
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
+use crate::post_processing::MainCamera;
 use crate::tilemap::{Tile, Tilemap};
 use crate::unit::{Effect, Health, Inventory, Movement, Shooting};
 use crate::HEIGHT;
@@ -196,10 +197,10 @@ fn player_movement(
 
 fn camera_follow(
 	player_query: Query<&Transform, With<Player>>,
-	mut camera_query: Query<&mut Transform, (Without<Player>, With<Camera>)>,
+	mut camera_query: Query<&mut Transform, (Without<Player>, With<MainCamera>)>,
 ) {
-	let player_transform = player_query.single();
 	let mut camera_transform = camera_query.single_mut();
+	let player_transform = player_query.single();
 
 	camera_transform.translation.x = player_transform.translation.x;
 	camera_transform.translation.y = player_transform.translation.y;

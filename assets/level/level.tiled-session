@@ -13,10 +13,10 @@
                 3
             ],
             "scale": 0.5,
-            "selectedLayer": 1,
+            "selectedLayer": 5,
             "viewCenter": {
-                "x": 808,
-                "y": -92
+                "x": -258,
+                "y": -8
             }
         },
         "tileset.tsx": {
