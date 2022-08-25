@@ -10,7 +10,7 @@ use rand::prelude::*;
 
 use rand::seq::SliceRandom;
 
-use crate::audio::{ShotgunSound, FootstepSounds, SnortingSounds};
+use crate::audio::{ShotgunSound, FootstepSounds, SnortingSounds, CraftingSound};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
@@ -380,7 +380,7 @@ fn use_powerup(
 	>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
-	audio: ResMut<Audio>,
+	audio: Res<Audio>,
 	snorting_sounds: Res<SnortingSounds>,
 ) {
 	let (mut inventory, mut movement, mut health, mut effect_data) = player_query.single_mut();
@@ -442,6 +442,8 @@ fn pick_up_cocaine(
 fn craft_magic_dust(
 	mut player_query: Query<&mut Inventory, With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
+	audio: Res<Audio>,
+	crafting_sound: Res<CraftingSound>,
 ) {
 	let mut inventory = player_query.single_mut();
 
@@ -450,6 +452,8 @@ fn craft_magic_dust(
 		if inventory.subtract_small_powerup(3) {
 			inventory.add_big_powerup(1);
 		}
+
+		audio.play(crafting_sound.clone());
 	}
 }
 

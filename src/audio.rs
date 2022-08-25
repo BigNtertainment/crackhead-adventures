@@ -16,6 +16,9 @@ pub struct Screams(pub Vec<Handle<AudioSource>>);
 #[derive(Deref, DerefMut)]
 pub struct SnortingSounds(pub Vec<Handle<AudioSource>>);
 
+#[derive(Deref, DerefMut)]
+pub struct CraftingSound(pub Handle<AudioSource>);
+
 pub struct AudioLoadPlugin;
 
 impl Plugin for AudioLoadPlugin {
@@ -48,4 +51,6 @@ fn load_audio(mut commands: Commands, asset_server: Res<AssetServer>) {
         asset_server.load("audio/snorting_3.wav"),
         asset_server.load("audio/snorting_4.wav"),
     ]));
+
+    commands.insert_resource(CraftingSound(asset_server.load("audio/craft_drug.wav")));
 }
