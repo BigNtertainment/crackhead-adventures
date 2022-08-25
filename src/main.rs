@@ -25,6 +25,7 @@ mod game_over;
 mod crosshair;
 mod enemy_nav_mesh;
 mod audio;
+mod music;
 
 use bullet::BulletPlugin;
 use button::ButtonPlugin;
@@ -32,6 +33,7 @@ use crosshair::CrosshairPlugin;
 use enemy::EnemyPlugin;
 use fonts::FontPlugin;
 use main_menu::MainMenuPlugin;
+use music::MusicPlugin;
 use player::PlayerPlugin;
 use debug::DebugPlugin;
 use post_processing::PostProcessingPlugin;
@@ -66,6 +68,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(AudioPlugin)
+        .add_plugin(MusicPlugin)
         .add_plugin(PostProcessingPlugin)
         .add_plugin(AudioLoadPlugin)
         .add_plugin(FontPlugin)
