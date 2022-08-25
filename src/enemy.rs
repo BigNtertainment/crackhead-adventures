@@ -10,6 +10,7 @@ use navmesh::NavVec3;
 use rand::random;
 use rand::seq::SliceRandom;
 
+use crate::audio::{ShotgunSound, EnemyShotSound, Screams};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
@@ -25,7 +26,7 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
 	fn build(&self, app: &mut App) {
-		app.add_startup_system(load_shot_sound)
+		app
 			.add_startup_system(load_enemy_textures)
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
@@ -104,14 +105,6 @@ pub struct EnemyBodyBundle {
 	pub sprite_bundle: SpriteBundle,
 }
 
-fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let sound = asset_server.load("shot.wav");
-
-	commands.insert_resource(ShotSound(sound));
-}
-
-struct ShotSound(Handle<AudioSource>);
-
 fn load_enemy_textures(
 	mut commands: Commands,
 	mut textures: ResMut<TexturesMemo>,
@@ -170,7 +163,7 @@ fn update_enemy_ai(
 	windows: Res<Windows>,
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
-	shot_sound: Res<ShotSound>,
+	shot_sound: Res<EnemyShotSound>,
 	bullet_texture: Res<BulletTexture>,
 ) {
 	let (player, player_transform) = player.single_mut();
@@ -229,7 +222,7 @@ fn update_enemy_ai(
 
 						commands.entity(tilemap).push_children(&[bullet]);
 
-						audio.play(shot_sound.0.clone()).with_volume(0.1);
+						audio.play(shot_sound.clone()).with_volume(0.1);
 
 						shoot_event.send(ShootEvent(position));
 
@@ -345,6 +338,8 @@ fn get_shot(
 	enemy_query: Query<Entity, With<Enemy>>,
 	mut shot_events: EventReader<ShotEvent>,
 	enemy_textures: Res<EnemyTextures>,
+	audio: Res<Audio>,
+	screams: Res<Screams>,
 ) {
 	let tilemap = tilemap_query.single();
 	let mut enemies: Vec<Entity> = enemy_query.iter().collect();
@@ -370,6 +365,8 @@ fn get_shot(
 				.id();
 
 			commands.entity(tilemap).push_children(&[body]);
+
+			audio.play(screams.choose(&mut rand::thread_rng()).expect("No scream sounds found.").clone()).with_volume(0.3);
 
 			// Spawn a few blood splatters
 			let temp: Vec<u32> = (0..4).collect();
