@@ -9,7 +9,7 @@ use crate::cocaine::CocaineBundle;
 use crate::enemy::EnemyBundle;
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::PlayerBundle;
-use crate::win::WinBundle;
+use crate::win::{WinBundle, WinMaterial};
 use crate::{GameState, TILE_SIZE};
 
 #[derive(Component)]
@@ -144,6 +144,7 @@ fn load_level(
 	asset_server: Res<AssetServer>,
 	mut textures: ResMut<TexturesMemo>,
 	mut nav_mesh: ResMut<EnemyNavMesh>,
+	mut win_materials: ResMut<Assets<WinMaterial>>,
 ) {
 	let mut loader = Loader::new();
 	let map = loader.load_tmx_map("assets/level/level.tmx").unwrap();
@@ -153,15 +154,15 @@ fn load_level(
 	let mut entities = Vec::new();
 
 	let is_wall_at = |x: i32, y: i32| {
-		let wall_layer = map.get_layer(1).expect("There is no wall layer in the map file!");
+		let wall_layer = map
+			.get_layer(1)
+			.expect("There is no wall layer in the map file!");
 
 		match wall_layer.layer_type() {
-			LayerType::TileLayer(wall_layer) => {
-				match wall_layer {
-					TileLayer::Finite(_) => todo!("Maybe do this someday"),
-					TileLayer::Infinite(wall_layer) => {
-						return wall_layer.get_tile(x, y).is_some();
-					}
+			LayerType::TileLayer(wall_layer) => match wall_layer {
+				TileLayer::Finite(_) => todo!("Maybe do this someday"),
+				TileLayer::Infinite(wall_layer) => {
+					return wall_layer.get_tile(x, y).is_some();
 				}
 			},
 			_ => {
@@ -177,10 +178,10 @@ fn load_level(
 		let right = (x as f32 + if !is_wall_at(x + 1, y) { 0.5 } else { 0.0 }) * TILE_SIZE;
 
 		nav_mesh.insert_rect(
-			Vec2::new(left, top),
-			Vec2::new(right, top),
-			Vec2::new(right, bottom),
-			Vec2::new(left, bottom),
+			Vec2::new(left, -top),
+			Vec2::new(right, -top),
+			Vec2::new(right, -bottom),
+			Vec2::new(left, -bottom),
 		);
 	};
 
@@ -224,77 +225,94 @@ fn load_level(
 															chunk_pos.0 * Chunk::WIDTH as i32 + x,
 															chunk_pos.1 * Chunk::HEIGHT as i32 + y,
 														);
-	
+
 														commands.spawn_bundle(FloorBundle::spawn(
 															tile_pos,
-															textures.get(&image_source, &asset_server),
+															textures
+																.get(&image_source, &asset_server),
 															flip_x,
 															flip_y,
-														))
+														)).id()
 													}
 													1 => {
 														// Wall layer
 														commands.spawn_bundle(WallBundle::spawn(
 															tile_pos,
-															textures.get(&image_source, &asset_server),
+															textures
+																.get(&image_source, &asset_server),
 															flip_x,
 															flip_y,
-														))
+														)).id()
 													}
 													2 => {
 														// Player layer
 														commands.spawn_bundle(PlayerBundle::spawn(
 															tile_pos,
-															textures.get(&image_source, &asset_server),
+															textures
+																.get(&image_source, &asset_server),
 															flip_x,
 															flip_y,
-														))
+														)).id()
 													}
 													3 => {
 														// Enemy layer
 														commands.spawn_bundle(EnemyBundle::spawn(
 															tile_pos,
-															textures.get(&image_source, &asset_server),
+															textures
+																.get(&image_source, &asset_server),
 															flip_x,
 															flip_y,
-														))
-													},
+														)).id()
+													}
 													4 => {
 														// Cocaine layer
 														commands.spawn_bundle(CocaineBundle::spawn(
 															tile_pos,
-															textures.get(&image_source, &asset_server),
+															textures
+																.get(&image_source, &asset_server),
 															flip_x,
-															flip_y
-														))
-													},
+															flip_y,
+														)).id()
+													}
 													5 => {
 														// Details layer
 														commands.spawn_bundle(SpriteBundle {
-															transform: Transform::from_translation(tile_pos.extend(20.0)),
+															transform: Transform::from_translation(
+																tile_pos.extend(20.0),
+															),
 															sprite: Sprite {
 																flip_x,
 																flip_y,
 																..Default::default()
 															},
-															texture: textures.get(&image_source, &asset_server),
+															texture: textures
+																.get(&image_source, &asset_server),
 															..Default::default()
-														})
-													},
+														}).id()
+													}
 													6 => {
 														// Win layer
+														let material =
+															win_materials.add(WinMaterial {
+																source_image: textures.get(
+																	&image_source,
+																	&asset_server,
+																),
+																time: 0,
+															});
+
 														commands.spawn_bundle(WinBundle::spawn(
 															tile_pos,
-															textures.get(&image_source, &asset_server),
+															textures
+																.get(&image_source, &asset_server),
 															flip_x,
-															flip_y
-														))
-													},
+															flip_y,
+														)).insert(material).id()
+													}
 													_ => {
 														panic!("Too much layers in the level file");
 													}
-												}
-												.id(),
+												},
 											);
 										}
 									}

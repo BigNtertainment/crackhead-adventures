@@ -40,7 +40,6 @@ impl Plugin for WinPlugin {
 pub struct WinBundle {
 	#[bundle]
 	sprite_budle: SpriteBundle,
-	material: Handle<WinMaterial>,
 	win: Win,
 }
 

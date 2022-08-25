@@ -64,7 +64,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 			parent
 				.spawn_bundle(
 					TextBundle::from_section(
-						"Give me drugs or I will murder your family",
+						"Give me your fun dust or I will fckin murder you",
 						TextStyle {
 							font: paint_font.0.clone(),
 							font_size: 32.0,

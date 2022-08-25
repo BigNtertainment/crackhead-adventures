@@ -4,6 +4,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioControl};
+use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
 use rand::random;
@@ -20,7 +21,7 @@ use crate::{GameState, TILE_SIZE};
 
 pub const ENEMY_SIGHT: f32 = 12.0 * TILE_SIZE;
 pub const ENEMY_HEARING: f32 = 10.0 * TILE_SIZE;
-pub const SHOCK_DURATION: f32 = 0.8;
+pub const SHOCK_DURATION: f32 = 0.5;
 
 pub struct EnemyPlugin;
 
