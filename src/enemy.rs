@@ -12,6 +12,7 @@ use rand::seq::SliceRandom;
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
+use crate::post_processing::MainCamera;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
 use crate::unit::{Movement, Shooting};
 use crate::{GameState, TILE_SIZE};
@@ -151,7 +152,7 @@ fn update_enemy_ai(
 	mut enemies: Query<(Entity, &mut Transform, &Movement, &mut Shooting, &mut Enemy)>,
 	mut player: Query<(Entity, &Transform), (With<Player>, Without<Enemy>)>,
 	tilemap: Query<Entity, (With<Tilemap>, Without<Player>, Without<Enemy>)>,
-	camera: Query<&Transform, (With<Camera>, Without<Player>, Without<Enemy>, Without<Tilemap>)>,
+	camera: Query<&Transform, (With<MainCamera>, Without<Player>, Without<Enemy>, Without<Tilemap>)>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
 	windows: Res<Windows>,

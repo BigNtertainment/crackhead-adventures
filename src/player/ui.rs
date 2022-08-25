@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{unit::{Health, Inventory}, fonts::PaintFont};
 
-use super::{EffectData, Player};
+use super::{Player, effect::EffectData};
 
 
 #[derive(Component)]
