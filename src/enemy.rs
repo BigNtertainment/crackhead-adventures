@@ -232,42 +232,28 @@ fn update_enemy_ai(
 
 						shooting.cooldown.reset();
 					}
-				} else {
-					// Enemy is off-screen, approach the player
-					if let EnemyAiState::Combat { player_position } = enemy.ai_state {
-						// When exiting combat
-						let path = nav_mesh
-							.get_nav_mesh()
-							.expect("The nav mesh has not been baked!")
-							.find_path(
-								transform.translation.to_array().into(),
-								player_position.to_array().into(),
-								navmesh::NavQuery::Closest,
-								navmesh::NavPathMode::Accuracy,
-							);
 
-						enemy.ai_state = EnemyAiState::Alert { path, current: 0 };
-					}
+					continue;
 				}
-			} else {
-				// Not in combat
-				if let EnemyAiState::Combat { player_position } = enemy.ai_state {
-					// When exiting combat
-					let path = nav_mesh
-						.get_nav_mesh()
-						.expect("The nav mesh has not been baked!")
-						.find_path(
-							transform.translation.to_array().into(),
-							player_position.to_array().into(),
-							navmesh::NavQuery::Closest,
-							navmesh::NavPathMode::Accuracy,
-						);
-
-					enemy.ai_state = EnemyAiState::Alert { path, current: 0 };
-				}
-
-				enemy.shock_timer.reset();
 			}
+
+			// Not in combat
+			if let EnemyAiState::Combat { player_position } = enemy.ai_state {
+				// When exiting combat
+				let path = nav_mesh
+					.get_nav_mesh()
+					.expect("The nav mesh has not been baked!")
+					.find_path(
+						transform.translation.to_array().into(),
+						player_position.to_array().into(),
+						navmesh::NavQuery::Closest,
+						navmesh::NavPathMode::Accuracy,
+					);
+
+				enemy.ai_state = EnemyAiState::Alert { path, current: 0 };
+			}
+
+			enemy.shock_timer.reset();
 		}
 	}
 }
