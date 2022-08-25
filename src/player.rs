@@ -362,14 +362,14 @@ pub struct BigPowerup;
 
 impl Effect for BigPowerup {
 	fn apply(&self, movement: &mut Movement, health: &mut Health) {
-		movement.speed *= 5.0;
+		movement.speed *= 3.5;
 		if health.get_health() > 5.0 {
 			health.set_health(5.0);
 		}
 	}
 
 	fn finish(&self, movement: &mut Movement, _: &mut Health) {
-		movement.speed /= 5.0;
+		movement.speed /= 3.5;
 	}
 }
 
