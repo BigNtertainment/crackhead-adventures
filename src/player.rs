@@ -424,12 +424,12 @@ fn update_powerup_material(
 				PowerupMaterial::SmallPowerup(powerup) => {
 					let mut powerup = small_powerup_materials.get_mut(powerup).unwrap();
 
-					powerup.time = (time.delta_seconds_f64() * 1000.0).floor() as u32;
+					powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
 				},
 				PowerupMaterial::BigPowerup(powerup) => {
 					let mut powerup = big_powerup_materials.get_mut(powerup).unwrap();
 
-					powerup.time = (time.delta_seconds_f64() * 1000.0).floor() as u32;
+					powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
 				}
 			}
 		},

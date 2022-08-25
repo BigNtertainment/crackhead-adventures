@@ -67,7 +67,7 @@ pub struct SmallPowerupMaterial {
 
 impl Material2d for SmallPowerupMaterial {
 	fn fragment_shader() -> ShaderRef {
-		"shaders/custom_material_chromatic_aberration.wgsl".into()
+		"shaders/SMALL_DRUG.wgsl".into()
 	}
 }
 
@@ -85,6 +85,6 @@ pub struct BigPowerupMaterial {
 
 impl Material2d for BigPowerupMaterial {
 	fn fragment_shader() -> ShaderRef {
-		"shaders/custom_material_chromatic_aberration.wgsl".into()
+		"shaders/BIG_DRUG.wgsl".into()
 	}
 }
