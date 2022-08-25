@@ -9,6 +9,7 @@ use crate::cocaine::CocaineBundle;
 use crate::enemy::EnemyBundle;
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::PlayerBundle;
+use crate::win::WinBundle;
 use crate::{GameState, TILE_SIZE};
 
 #[derive(Component)]
@@ -279,6 +280,15 @@ fn load_level(
 															texture: textures.get(&image_source, &asset_server),
 															..Default::default()
 														})
+													},
+													6 => {
+														// Win layer
+														commands.spawn_bundle(WinBundle::spawn(
+															tile_pos,
+															textures.get(&image_source, &asset_server),
+															flip_x,
+															flip_y
+														))
 													},
 													_ => {
 														panic!("Too much layers in the level file");

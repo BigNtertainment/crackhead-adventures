@@ -139,8 +139,8 @@ enum EnemyAiState {
 fn is_on_screen(point: Vec2, window: &Window, camera: &Transform) -> bool {
 	let screen_position = point - camera.translation.truncate();
 
-	screen_position.x.abs() < window.width() / 2.0
-		&& screen_position.y.abs() < window.height() / 2.0
+	screen_position.x.abs() < (window.width() - TILE_SIZE) / 2.0
+		&& screen_position.y.abs() < (window.height() - TILE_SIZE) / 2.0
 }
 
 fn update_enemy_ai(
@@ -227,6 +227,22 @@ fn update_enemy_ai(
 						shoot_event.send(ShootEvent(position));
 
 						shooting.cooldown.reset();
+					}
+				} else {
+					// Enemy is off-screen, approach the player
+					if let EnemyAiState::Combat { player_position } = enemy.ai_state {
+						// When exiting combat
+						let path = nav_mesh
+							.get_nav_mesh()
+							.expect("The nav mesh has not been baked!")
+							.find_path(
+								transform.translation.to_array().into(),
+								player_position.to_array().into(),
+								navmesh::NavQuery::Closest,
+								navmesh::NavPathMode::Accuracy,
+							);
+
+						enemy.ai_state = EnemyAiState::Alert { path, current: 0 };
 					}
 				}
 			} else {

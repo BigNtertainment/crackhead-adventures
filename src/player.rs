@@ -18,6 +18,7 @@ use crate::tilemap::{Tile, Tilemap};
 use crate::unit::{Effect, Health, Inventory, Movement, Shooting, ShootEvent};
 use crate::HEIGHT;
 use crate::WIDTH;
+use crate::win::Win;
 use crate::{GameState, TILE_SIZE};
 
 mod ui;
@@ -51,6 +52,7 @@ impl Plugin for PlayerPlugin {
 					.with_system(player_shoot.after("player_aim"))
 					.with_system(damage_yourself)
 					.with_system(get_shot)
+					.with_system(win_condition)
 					.with_system(update_ui)
 					.with_system(pick_up_cocaine)
 					.with_system(craft_magic_dust)
@@ -473,6 +475,22 @@ fn get_shot(
 
 		if health.take_damage(25.0 + random::<f32>() * 10.0) {
 			if state.set(GameState::GameOver).is_err() {}
+		}
+	}
+}
+
+fn win_condition(
+	player: Query<&Transform, With<Player>>,
+	win: Query<&Transform, With<Win>>,
+	mut state: ResMut<State<GameState>>,
+) {
+	let player_position = player.single().translation;
+
+	for win in win.iter() {
+		let distance = (player_position - win.translation).length();
+
+		if distance < TILE_SIZE {
+			if state.set(GameState::Win).is_err() {}
 		}
 	}
 }

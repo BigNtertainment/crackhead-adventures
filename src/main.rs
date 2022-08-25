@@ -16,6 +16,7 @@ mod cocaine;
 mod bullet;
 mod debug;
 mod tilemap;
+mod win;
 mod fonts;
 mod button;
 mod main_menu;
@@ -35,12 +36,14 @@ use debug::DebugPlugin;
 use tilemap::TileMapPlugin;
 use game_over::GameOverPlugin;
 use audio::AudioLoadPlugin;
+use win::WinPlugin;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum GameState {
     MainMenu,
     Game,
     GameOver,
+    Win,
 }
 
 fn camera_setup(mut commands: Commands) {
@@ -75,6 +78,7 @@ fn main() {
         .add_plugin(BulletPlugin)
         .add_plugin(MainMenuPlugin)
         .add_plugin(GameOverPlugin)
+        .add_plugin(WinPlugin)
         .add_plugin(CrosshairPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(DebugLinesPlugin::default())
