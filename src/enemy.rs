@@ -3,17 +3,17 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy_kira_audio::{Audio, AudioControl, AudioSource};
-use bevy_prototype_debug_lines::DebugLines;
+use bevy_kira_audio::{Audio, AudioControl};
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
 use rand::random;
 use rand::seq::SliceRandom;
 
-use crate::audio::{ShotgunSound, EnemyShotSound, Screams};
+use crate::audio::{EnemyShotSound, Screams};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
+use crate::post_processing::MainCamera;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
 use crate::unit::{Movement, ShootEvent, Shooting};
 use crate::{GameState, TILE_SIZE};
@@ -151,7 +151,7 @@ fn update_enemy_ai(
 	camera: Query<
 		&Transform,
 		(
-			With<Camera>,
+			With<MainCamera>,
 			Without<Player>,
 			Without<Enemy>,
 			Without<Tilemap>,

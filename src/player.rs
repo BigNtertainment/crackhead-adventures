@@ -14,6 +14,10 @@ use crate::audio::{ShotgunSound, FootstepSounds, SnortingSounds, CraftingSound};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
+use crate::post_processing::{
+	update_post_processing_effects, CameraRenderImage, DefaultMaterial, MainCamera,
+	PostProcessingLayer, ScreenRes,
+};
 use crate::tilemap::{Tile, Tilemap};
 use crate::unit::{Effect, Health, Inventory, Movement, Shooting, ShootEvent};
 use crate::HEIGHT;
@@ -21,9 +25,16 @@ use crate::WIDTH;
 use crate::win::Win;
 use crate::{GameState, TILE_SIZE};
 
+mod effect;
+mod post_processing;
 mod ui;
 
 use ui::{drop_ui, ui_setup, update_ui};
+
+use self::effect::{BigPowerup, EffectData, SmallPowerup};
+use self::post_processing::{
+	clean_post_processing, BigPowerupMaterial, PlayerPostProcessingPlugin, SmallPowerupMaterial,
+};
 
 pub const WEAPON_COOLDOWN: f32 = 0.5;
 pub const SMALL_POWERUP_DURATION: f32 = 5.0;
@@ -36,7 +47,9 @@ pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
 	fn build(&self, app: &mut App) {
-		app.register_type::<Movement>()
+		app.add_plugin(PlayerPostProcessingPlugin)
+			.register_type::<Movement>()
+			.insert_resource(ActiveMaterial(None))
 			.add_event::<ShootEvent>()
 			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup).with_system(setup_footstep_timer))
 			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui).with_system(drop_footstep_timer))
@@ -56,7 +69,8 @@ impl Plugin for PlayerPlugin {
 					.with_system(update_ui)
 					.with_system(pick_up_cocaine)
 					.with_system(craft_magic_dust)
-					.with_system(use_powerup),
+					.with_system(use_powerup)
+					.with_system(update_powerup_material),
 			);
 	}
 }
@@ -177,7 +191,9 @@ fn player_movement(
 
 		let predicate = |entity| !enemies.contains(&entity);
 
-		let filter = QueryFilter::default().exclude_collider(player_entity).predicate(&predicate);
+		let filter = QueryFilter::default()
+			.exclude_collider(player_entity)
+			.predicate(&predicate);
 
 		let movement_vector = Vec2::new(
 			if let Some((_, hit)) = rapier_context.cast_shape(
@@ -220,10 +236,10 @@ fn player_movement(
 
 fn camera_follow(
 	player_query: Query<&Transform, With<Player>>,
-	mut camera_query: Query<&mut Transform, (Without<Player>, With<Camera>)>,
+	mut camera_query: Query<&mut Transform, (Without<Player>, With<MainCamera>)>,
 ) {
-	let player_transform = player_query.single();
 	let mut camera_transform = camera_query.single_mut();
+	let player_transform = player_query.single();
 
 	camera_transform.translation.x = player_transform.translation.x;
 	camera_transform.translation.y = player_transform.translation.y;
@@ -283,9 +299,8 @@ fn player_shoot(
 		let mut bullets = Vec::new();
 
 		for i in 1..5 {
-			let mut bullet_transform = player_transform.with_translation(
-				player_transform.translation + player_transform.up() * TILE_SIZE
-			);
+			let mut bullet_transform = player_transform
+				.with_translation(player_transform.translation + player_transform.up() * TILE_SIZE);
 
 			bullet_transform.rotate_z((i - 2) as f32 * (0.02 + random::<f32>() * 0.01));
 
@@ -315,67 +330,17 @@ fn player_shoot(
 	}
 }
 
-#[derive(Component)]
-pub struct EffectData {
-	effect: Option<Box<dyn Effect + Send + Sync>>,
-	duration: Timer,
+// It actually doesn't make any sense but it's the fastest (and also hackiest) way to do this
+enum PowerupMaterial {
+	SmallPowerup(Handle<SmallPowerupMaterial>),
+	BigPowerup(Handle<BigPowerupMaterial>),
 }
 
-impl EffectData {
-	fn apply(
-		&mut self,
-		effect: Option<Box<dyn Effect + Send + Sync>>,
-		movement: &mut Movement,
-		health: &mut Health,
-		duration: f32,
-	) {
-		self.effect = effect;
-
-		if let Some(effect) = &mut self.effect {
-			effect.apply(movement, health);
-		}
-
-		self.duration = Timer::from_seconds(duration, false);
-	}
-
-	fn finish(&mut self, movement: &mut Movement, health: &mut Health) {
-		if let Some(effect) = &self.effect {
-			effect.finish(movement, health);
-		}
-
-		self.effect = None;
-	}
-}
-
-pub struct SmallPowerup;
-
-impl Effect for SmallPowerup {
-	fn apply(&self, movement: &mut Movement, health: &mut Health) {
-		movement.speed *= 2.0;
-		health.heal(20.0);
-	}
-
-	fn finish(&self, movement: &mut Movement, _: &mut Health) {
-		movement.speed /= 2.0;
-	}
-}
-
-pub struct BigPowerup;
-
-impl Effect for BigPowerup {
-	fn apply(&self, movement: &mut Movement, health: &mut Health) {
-		movement.speed *= 3.5;
-		if health.get_health() > 5.0 {
-			health.set_health(5.0);
-		}
-	}
-
-	fn finish(&self, movement: &mut Movement, _: &mut Health) {
-		movement.speed /= 3.5;
-	}
-}
+#[derive(Deref, DerefMut)]
+struct ActiveMaterial(Option<PowerupMaterial>);
 
 fn use_powerup(
+	mut commands: Commands,
 	mut player_query: Query<
 		(&mut Inventory, &mut Movement, &mut Health, &mut EffectData),
 		With<Player>,
@@ -384,6 +349,14 @@ fn use_powerup(
 	time: Res<Time>,
 	audio: Res<Audio>,
 	snorting_sounds: Res<SnortingSounds>,
+	post_processing_pass_layer: Res<PostProcessingLayer>,
+	screen: Res<ScreenRes>,
+	mut active_effect: ResMut<ActiveMaterial>,
+	source_image: Res<CameraRenderImage>,
+	mut default_materials: ResMut<Assets<DefaultMaterial>>,
+	mut small_powerup_materials: ResMut<Assets<SmallPowerupMaterial>>,
+	mut big_powerup_materials: ResMut<Assets<BigPowerupMaterial>>,
+	mut meshes: ResMut<Assets<Mesh>>,
 ) {
 	let (mut inventory, mut movement, mut health, mut effect_data) = player_query.single_mut();
 
@@ -392,6 +365,16 @@ fn use_powerup(
 	if effect_data.duration.just_finished() {
 		// Remove the effects
 		effect_data.finish(movement.as_mut(), health.as_mut());
+		clean_post_processing(
+			&mut commands,
+			&screen.0,
+			&mut meshes,
+			&post_processing_pass_layer,
+			&source_image,
+			&mut default_materials,
+		);
+
+		active_effect.0 = None;
 	}
 
 	// Don't take more drugs if you're high already
@@ -408,7 +391,23 @@ fn use_powerup(
 			SMALL_POWERUP_DURATION,
 		);
 
-		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone());
+		let powerup = small_powerup_materials.add(SmallPowerupMaterial {
+			source_image: source_image.0.clone(),
+			time: 0,
+		});
+
+		// Add a post-processing effect
+		update_post_processing_effects(
+			&mut commands,
+			&screen,
+			powerup.clone(),
+			&mut meshes,
+			&post_processing_pass_layer,
+		);
+
+		active_effect.0 = Some(PowerupMaterial::SmallPowerup(powerup));
+
+		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
 	}
 	// Big powerup is under R
 	else if keyboard.just_pressed(KeyCode::R) && inventory.subtract_big_powerup(1) {
@@ -419,7 +418,49 @@ fn use_powerup(
 			BIG_POWERUP_DURATION,
 		);
 
-		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone());
+		let powerup = big_powerup_materials.add(BigPowerupMaterial {
+			source_image: source_image.0.clone(),
+			time: 0,
+		});
+
+		// Add a post-processing effect
+		update_post_processing_effects(
+			&mut commands,
+			&screen,
+			powerup.clone(),
+			&mut meshes,
+			&post_processing_pass_layer,
+		);
+
+		active_effect.0 = Some(PowerupMaterial::BigPowerup(powerup));
+		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
+
+	}
+}
+
+fn update_powerup_material(
+	mut active_effect: ResMut<ActiveMaterial>,
+	mut small_powerup_materials: ResMut<Assets<SmallPowerupMaterial>>,
+	mut big_powerup_materials: ResMut<Assets<BigPowerupMaterial>>,
+	time: Res<Time>,
+) {
+	match &mut active_effect.0 {
+		Some(powerup) => {
+			match powerup {
+				PowerupMaterial::SmallPowerup(powerup) => {
+					let mut powerup = small_powerup_materials.get_mut(powerup).unwrap();
+
+					powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
+				},
+				PowerupMaterial::BigPowerup(powerup) => {
+					let mut powerup = big_powerup_materials.get_mut(powerup).unwrap();
+
+					powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
+				}
+			}
+		},
+		None => (),
+
 	}
 }
 
@@ -453,9 +494,9 @@ fn craft_magic_dust(
 	if keyboard.just_pressed(KeyCode::T) {
 		if inventory.subtract_small_powerup(3) {
 			inventory.add_big_powerup(1);
+			audio.play(crafting_sound.clone()).with_volume(0.1);
 		}
 
-		audio.play(crafting_sound.clone());
 	}
 }
 

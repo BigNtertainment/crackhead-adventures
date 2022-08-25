@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::{unit::{Health, Inventory}, fonts::PaintFont};
 
-use super::{EffectData, Player};
+use super::{Player, effect::EffectData};
 
 
 #[derive(Component)]
@@ -160,7 +160,7 @@ pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
                             parent
                                 .spawn_bundle(
                                     TextBundle::from_section(
-                                        "Cocaine+1: ",
+                                        "Fun Dust: ",
                                         TextStyle {
                                             font: font.clone(),
                                             font_size: 32.0,
