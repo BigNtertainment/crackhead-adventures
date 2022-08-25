@@ -440,7 +440,7 @@ fn update_powerup_material(
 	mut active_effect: ResMut<ActiveMaterial>,
 	mut small_powerup_materials: ResMut<Assets<SmallPowerupMaterial>>,
 	mut big_powerup_materials: ResMut<Assets<BigPowerupMaterial>>,
-	time: Res<Time>,	audio: Res<Audio>,
+	time: Res<Time>,
 ) {
 	match &mut active_effect.0 {
 		Some(powerup) => {

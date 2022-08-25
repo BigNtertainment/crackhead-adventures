@@ -77,8 +77,8 @@ pub struct Inventory {
 impl Inventory {
 	pub fn new() -> Self {
 		Self {
-			small_powerups: 2,
-			big_powerups: 2,
+			small_powerups: 0,
+			big_powerups: 0,
 		}
 	}
 
