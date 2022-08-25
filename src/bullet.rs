@@ -3,6 +3,9 @@ use bevy_rapier2d::prelude::{Collider, QueryFilter, RapierContext, Sensor};
 
 use crate::GameState;
 
+pub const BULLET_COLLIDER_WIDTH: f32 = 10.0;
+pub const BULLET_COLLIDER_HEIGHT: f32 = 10.0;
+
 pub struct BulletPlugin;
 
 impl Plugin for BulletPlugin {
@@ -39,7 +42,7 @@ impl Default for BulletBundle {
     fn default() -> Self {
         Self {
             bullet: Bullet { speed: 4000.0 },
-            collider: Collider::cuboid(10.0, 10.0),
+            collider: Collider::cuboid(BULLET_COLLIDER_WIDTH, BULLET_COLLIDER_HEIGHT),
             sensor: Sensor,
             sprite_bundle: SpriteBundle::default(),
             name: Name::new("Bullet"),

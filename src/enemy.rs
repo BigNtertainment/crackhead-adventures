@@ -10,7 +10,7 @@ use rand::random;
 use rand::seq::SliceRandom;
 
 use crate::audio::{EnemyShotSound, Screams};
-use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
+use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent, BULLET_COLLIDER_WIDTH, BULLET_COLLIDER_HEIGHT};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::post_processing::MainCamera;
@@ -26,16 +26,14 @@ pub struct EnemyPlugin;
 
 impl Plugin for EnemyPlugin {
 	fn build(&self, app: &mut App) {
-		app
-			.add_startup_system(load_enemy_textures)
-			.add_system_set(
-				SystemSet::on_update(GameState::Game)
-					.with_system(update_enemy_ai.label("update_enemy_ai"))
-					.with_system(alert_on_shot_sound)
-					.with_system(update_enemy_position.after("update_enemy_ai"))
-					.with_system(update_enemy_texture)
-					.with_system(get_shot),
-			);
+		app.add_startup_system(load_enemy_textures).add_system_set(
+			SystemSet::on_update(GameState::Game)
+				.with_system(update_enemy_ai.label("update_enemy_ai"))
+				.with_system(alert_on_shot_sound)
+				.with_system(update_enemy_position.after("update_enemy_ai"))
+				.with_system(update_enemy_texture)
+				.with_system(get_shot),
+		);
 	}
 }
 
@@ -178,17 +176,23 @@ fn update_enemy_ai(
 		let position = transform.translation.truncate();
 
 		// Look if there is a direct line of sight to the player
-		let ray_origin = position;
-		let ray_direction = (player_position - position).normalize();
+		let shape = Collider::cuboid(BULLET_COLLIDER_WIDTH, BULLET_COLLIDER_HEIGHT);
+		let shape_origin = position;
+		let shape_direction = (player_position - position).normalize();
+		let shape_rotation = transform.rotation.z;
 		let max_time_of_impact = ENEMY_SIGHT;
-		let solid = true;
 		let filter = QueryFilter::default()
 			.exclude_collider(entity)
 			.exclude_sensors();
 
-		if let Some((entity, _)) =
-			rapier_context.cast_ray(ray_origin, ray_direction, max_time_of_impact, solid, filter)
-		{
+		if let Some((entity, _)) = rapier_context.cast_shape(
+			shape_origin,
+			shape_rotation,
+			shape_direction,
+			&shape,
+			max_time_of_impact,
+			filter,
+		) {
 			if entity.id() == player.id() {
 				// The enemy can see the player
 				enemy.ai_state = EnemyAiState::Combat { player_position };
@@ -382,7 +386,14 @@ fn get_shot(
 
 			commands.entity(tilemap).push_children(&[body]);
 
-			audio.play(screams.choose(&mut rand::thread_rng()).expect("No scream sounds found.").clone()).with_volume(0.3);
+			audio
+				.play(
+					screams
+						.choose(&mut rand::thread_rng())
+						.expect("No scream sounds found.")
+						.clone(),
+				)
+				.with_volume(0.3);
 
 			// Spawn a few blood splatters
 			let temp: Vec<u32> = (0..4).collect();
