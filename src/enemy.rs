@@ -20,7 +20,7 @@ use crate::{GameState, TILE_SIZE};
 
 pub const ENEMY_SIGHT: f32 = 12.0 * TILE_SIZE;
 pub const ENEMY_HEARING: f32 = 10.0 * TILE_SIZE;
-pub const SHOCK_DURATION: f32 = 0.3;
+pub const SHOCK_DURATION: f32 = 0.8;
 
 pub struct EnemyPlugin;
 
