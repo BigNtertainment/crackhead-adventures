@@ -39,7 +39,7 @@ pub struct SmallPowerup;
 impl Effect for SmallPowerup {
 	fn apply(&self, movement: &mut Movement, health: &mut Health) {
 		movement.speed *= 2.0;
-		health.heal(20.0);
+		health.heal(35.0);
 	}
 
 	fn finish(&self, movement: &mut Movement, _: &mut Health) {
