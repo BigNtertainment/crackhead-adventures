@@ -103,7 +103,7 @@ impl Default for PlayerBundle {
 			name: Name::new("Player"),
 			player: Player,
 			movement: Movement { speed: 10.0 },
-			health: Health::new(100.0),
+			health: Health::new(10000.0),
 			shooting: Shooting {
 				cooldown: Timer::new(Duration::from_secs_f32(WEAPON_COOLDOWN), false),
 			},

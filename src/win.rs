@@ -1,4 +1,4 @@
-use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::{AsBindGroup, ShaderRef}, sprite::Material2d};
+use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::{AsBindGroup, ShaderRef}, sprite::{Material2d, Material2dPlugin}};
 
 use crate::{
 	button::ColoredButton,
@@ -24,8 +24,10 @@ pub struct WinPlugin;
 impl Plugin for WinPlugin {
 	fn build(&self, app: &mut App) {
 		app.add_system_set(SystemSet::on_enter(GameState::Win).with_system(load_ui))
+		.add_plugin(Material2dPlugin::<WinMaterial>::default())
 			.add_system_set(
 				SystemSet::on_update(GameState::Win)
+				
 					.with_system(update_win_material)
 					.with_system(play_again_button)
 					.with_system(main_menu_button),
@@ -61,7 +63,7 @@ impl Tile for WinBundle {
 }
 
 #[derive(AsBindGroup, TypeUuid, Clone)]
-#[uuid = "bc2f08eb-a0fb-43f1-a908-54871ea597d5"]
+#[uuid = "2a387ac3-1602-4d2c-aa88-1acef30a287a"]
 pub struct WinMaterial {
 	/// In this example, this image will be the result of the main camera.
 	#[texture(0)]
@@ -73,7 +75,7 @@ pub struct WinMaterial {
 
 impl Material2d for WinMaterial {
 	fn fragment_shader() -> ShaderRef {
-		"shaders/default.wgsl".into()
+		"shaders/win.wgsl".into()
 	}
 }
 
