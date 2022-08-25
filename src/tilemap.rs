@@ -205,88 +205,88 @@ fn load_level(
 											tile.flip_v || tile.flip_d,
 										);
 
-										let tile = tileset.get_tile(tile.id()).expect("what");
+										if let Some(tile) = tileset.get_tile(tile.id()) {
+											let image_source = tile
+												.image
+												.as_ref()
+												.unwrap()
+												.source
+												.strip_prefix("assets")
+												.expect("what")
+												.to_path_buf();
 
-										let image_source = tile
-											.image
-											.as_ref()
-											.unwrap()
-											.source
-											.strip_prefix("assets")
-											.expect("what")
-											.to_path_buf();
-
-										entities.push(
-											match layer_num {
-												0 => {
-													// Floor layer
-													register_nav_mesh(
-														chunk_pos.0 * Chunk::WIDTH as i32 + x,
-														chunk_pos.1 * Chunk::HEIGHT as i32 + y,
-													);
-
-													commands.spawn_bundle(FloorBundle::spawn(
-														tile_pos,
-														textures.get(&image_source, &asset_server),
-														flip_x,
-														flip_y,
-													))
-												}
-												1 => {
-													// Wall layer
-													commands.spawn_bundle(WallBundle::spawn(
-														tile_pos,
-														textures.get(&image_source, &asset_server),
-														flip_x,
-														flip_y,
-													))
-												}
-												2 => {
-													// Player layer
-													commands.spawn_bundle(PlayerBundle::spawn(
-														tile_pos,
-														textures.get(&image_source, &asset_server),
-														flip_x,
-														flip_y,
-													))
-												}
-												3 => {
-													// Enemy layer
-													commands.spawn_bundle(EnemyBundle::spawn(
-														tile_pos,
-														textures.get(&image_source, &asset_server),
-														flip_x,
-														flip_y,
-													))
-												},
-												4 => {
-													// Cocaine layer
-													commands.spawn_bundle(CocaineBundle::spawn(
-														tile_pos,
-														textures.get(&image_source, &asset_server),
-														flip_x,
-														flip_y
-													))
-												},
-												5 => {
-													// Details layer
-													commands.spawn_bundle(SpriteBundle {
-														transform: Transform::from_translation(tile_pos.extend(20.0)),
-														sprite: Sprite {
+											entities.push(
+												match layer_num {
+													0 => {
+														// Floor layer
+														register_nav_mesh(
+															chunk_pos.0 * Chunk::WIDTH as i32 + x,
+															chunk_pos.1 * Chunk::HEIGHT as i32 + y,
+														);
+	
+														commands.spawn_bundle(FloorBundle::spawn(
+															tile_pos,
+															textures.get(&image_source, &asset_server),
 															flip_x,
 															flip_y,
+														))
+													}
+													1 => {
+														// Wall layer
+														commands.spawn_bundle(WallBundle::spawn(
+															tile_pos,
+															textures.get(&image_source, &asset_server),
+															flip_x,
+															flip_y,
+														))
+													}
+													2 => {
+														// Player layer
+														commands.spawn_bundle(PlayerBundle::spawn(
+															tile_pos,
+															textures.get(&image_source, &asset_server),
+															flip_x,
+															flip_y,
+														))
+													}
+													3 => {
+														// Enemy layer
+														commands.spawn_bundle(EnemyBundle::spawn(
+															tile_pos,
+															textures.get(&image_source, &asset_server),
+															flip_x,
+															flip_y,
+														))
+													},
+													4 => {
+														// Cocaine layer
+														commands.spawn_bundle(CocaineBundle::spawn(
+															tile_pos,
+															textures.get(&image_source, &asset_server),
+															flip_x,
+															flip_y
+														))
+													},
+													5 => {
+														// Details layer
+														commands.spawn_bundle(SpriteBundle {
+															transform: Transform::from_translation(tile_pos.extend(20.0)),
+															sprite: Sprite {
+																flip_x,
+																flip_y,
+																..Default::default()
+															},
+															texture: textures.get(&image_source, &asset_server),
 															..Default::default()
-														},
-														texture: textures.get(&image_source, &asset_server),
-														..Default::default()
-													})
-												},
-												_ => {
-													panic!("Too much layers in the level file");
+														})
+													},
+													_ => {
+														panic!("Too much layers in the level file");
+													}
 												}
-											}
-											.id(),
-										);
+												.id(),
+											);
+										}
 									}
 								}
 							}

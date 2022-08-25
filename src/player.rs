@@ -8,6 +8,9 @@ use bevy_kira_audio::prelude::*;
 
 use rand::prelude::*;
 
+use rand::seq::SliceRandom;
+
+use crate::audio::{ShotgunSound, FootstepSounds, SnortingSounds, CraftingSound};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
@@ -16,7 +19,7 @@ use crate::post_processing::{
 	PostProcessingLayer, ScreenRes,
 };
 use crate::tilemap::{Tile, Tilemap};
-use crate::unit::{Health, Inventory, Movement, Shooting};
+use crate::unit::{Effect, Health, Inventory, Movement, Shooting, ShootEvent};
 use crate::HEIGHT;
 use crate::WIDTH;
 use crate::{GameState, TILE_SIZE};
@@ -46,9 +49,9 @@ impl Plugin for PlayerPlugin {
 		app.add_plugin(PlayerPostProcessingPlugin)
 			.register_type::<Movement>()
 			.insert_resource(ActiveMaterial(None))
-			.add_startup_system(load_shot_sound)
-			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup))
-			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui))
+			.add_event::<ShootEvent>()
+			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup).with_system(setup_footstep_timer))
+			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui).with_system(drop_footstep_timer))
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
@@ -131,12 +134,26 @@ impl Tile for PlayerBundle {
 	}
 }
 
+#[derive(Deref, DerefMut)]
+struct FootstepTimer(pub Timer);
+
+fn setup_footstep_timer(mut commands: Commands) {
+	commands.insert_resource(FootstepTimer(Timer::from_seconds(0.4, false)));
+}
+
+fn drop_footstep_timer(mut commands: Commands) {
+	commands.remove_resource::<FootstepTimer>();
+}
+
 fn player_movement(
 	mut player_query: Query<(Entity, &Movement, &mut Transform, &Collider), With<Player>>,
 	enemy_query: Query<Entity, (With<Enemy>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
+	audio: Res<Audio>,
 	rapier_context: Res<RapierContext>,
+	footstep_sounds: Res<FootstepSounds>,
+	mut footstep_timer: ResMut<FootstepTimer>
 ) {
 	let (player_entity, movement, mut transform, rapier_collider) = player_query
 		.iter_mut()
@@ -205,6 +222,12 @@ fn player_movement(
 			.y,
 		);
 
+		footstep_timer.tick(time.delta());
+		if movement_vector != Vec2::ZERO && footstep_timer.finished() {
+			audio.play(footstep_sounds.choose(&mut rand::thread_rng()).expect("No footstep sounds found.").clone());
+			footstep_timer.reset();
+		}
+		
 		transform.translation += movement_vector.extend(0.0);
 	}
 }
@@ -249,21 +272,15 @@ fn player_aim(mut player_query: Query<&mut Transform, With<Player>>, window: Res
 	}
 }
 
-fn load_shot_sound(mut commands: Commands, asset_server: Res<AssetServer>) {
-	let sound = asset_server.load("shot.wav");
-
-	commands.insert_resource(ShotSound(sound));
-}
-struct ShotSound(Handle<AudioSource>);
-
 fn player_shoot(
 	mut commands: Commands,
 	mut player_query: Query<(&Transform, &mut Shooting), With<Player>>,
 	world_query: Query<Entity, With<Tilemap>>,
+    mut event_shot: EventWriter<ShootEvent>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
 	audio: Res<Audio>,
-	shot_sound: Res<ShotSound>,
+	shot_sound: Res<ShotgunSound>,
 	bullet_texture: Res<BulletTexture>,
 ) {
 	let (player_transform, mut shooting) = player_query.single_mut();
@@ -302,7 +319,9 @@ fn player_shoot(
 
 		commands.entity(world).push_children(&bullets);
 
-		audio.play(shot_sound.0.clone()).with_volume(0.15);
+		audio.play(shot_sound.clone()).with_volume(0.05);
+
+		event_shot.send(ShootEvent(player_transform.translation.truncate()));
 
 		// Reset the cooldown timer
 		shooting.cooldown.reset();
@@ -326,6 +345,8 @@ fn use_powerup(
 	>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
+	audio: Res<Audio>,
+	snorting_sounds: Res<SnortingSounds>,
 	post_processing_pass_layer: Res<PostProcessingLayer>,
 	screen: Res<ScreenRes>,
 	mut active_effect: ResMut<ActiveMaterial>,
@@ -383,6 +404,8 @@ fn use_powerup(
 		);
 
 		active_effect.0 = Some(PowerupMaterial::SmallPowerup(powerup));
+
+		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
 	}
 	// Big powerup is under R
 	else if keyboard.just_pressed(KeyCode::R) && inventory.subtract_big_powerup(1) {
@@ -408,6 +431,8 @@ fn use_powerup(
 		);
 
 		active_effect.0 = Some(PowerupMaterial::BigPowerup(powerup));
+		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
+
 	}
 }
 
@@ -415,7 +440,7 @@ fn update_powerup_material(
 	mut active_effect: ResMut<ActiveMaterial>,
 	mut small_powerup_materials: ResMut<Assets<SmallPowerupMaterial>>,
 	mut big_powerup_materials: ResMut<Assets<BigPowerupMaterial>>,
-	time: Res<Time>,
+	time: Res<Time>,	audio: Res<Audio>,
 ) {
 	match &mut active_effect.0 {
 		Some(powerup) => {
@@ -433,6 +458,7 @@ fn update_powerup_material(
 			}
 		},
 		None => (),
+
 	}
 }
 
@@ -457,6 +483,8 @@ fn pick_up_cocaine(
 fn craft_magic_dust(
 	mut player_query: Query<&mut Inventory, With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
+	audio: Res<Audio>,
+	crafting_sound: Res<CraftingSound>,
 ) {
 	let mut inventory = player_query.single_mut();
 
@@ -464,7 +492,9 @@ fn craft_magic_dust(
 	if keyboard.just_pressed(KeyCode::T) {
 		if inventory.subtract_small_powerup(3) {
 			inventory.add_big_powerup(1);
+			audio.play(crafting_sound.clone()).with_volume(0.1);
 		}
+
 	}
 }
 
