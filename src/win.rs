@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::{AsBindGroup, ShaderRef}, sprite::Material2d};
 
 use crate::{
 	button::ColoredButton,
@@ -26,6 +26,7 @@ impl Plugin for WinPlugin {
 		app.add_system_set(SystemSet::on_enter(GameState::Win).with_system(load_ui))
 			.add_system_set(
 				SystemSet::on_update(GameState::Win)
+					.with_system(update_win_material)
 					.with_system(play_again_button)
 					.with_system(main_menu_button),
 			)
@@ -37,7 +38,7 @@ impl Plugin for WinPlugin {
 pub struct WinBundle {
 	#[bundle]
 	sprite_budle: SpriteBundle,
-	// material: Handle<>,
+	material: Handle<WinMaterial>,
 	win: Win,
 }
 
@@ -56,6 +57,32 @@ impl Tile for WinBundle {
 			},
 			..Default::default()
 		}
+	}
+}
+
+#[derive(AsBindGroup, TypeUuid, Clone)]
+#[uuid = "bc2f08eb-a0fb-43f1-a908-54871ea597d5"]
+pub struct WinMaterial {
+	/// In this example, this image will be the result of the main camera.
+	#[texture(0)]
+	#[sampler(1)]
+	pub source_image: Handle<Image>,
+	#[uniform(2)]
+	pub time: u32,
+}
+
+impl Material2d for WinMaterial {
+	fn fragment_shader() -> ShaderRef {
+		"shaders/default.wgsl".into()
+	}
+}
+
+fn update_win_material(win: Query<(&Handle<WinMaterial>, &Handle<Image>)>, time: Res<Time>, mut win_materials: ResMut<Assets<WinMaterial>>) {
+	for (win_material, texture) in win.iter() {
+		let mut win_material = win_materials.get_mut(&win_material).unwrap();
+
+		win_material.source_image = texture.clone();
+		win_material.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
 	}
 }
 
