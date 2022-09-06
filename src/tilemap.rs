@@ -1,9 +1,10 @@
 use bevy::utils::HashMap;
-use std::path::PathBuf;
+use std::io::ErrorKind;
+use std::path::{PathBuf, Path};
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
-use tiled::{Chunk, LayerType, Loader, TileLayer};
+use tiled::{Chunk, LayerType, Loader, TileLayer, Tileset, Map, ResourceReader, ResourceCache, DefaultResourceCache};
 
 use crate::cocaine::CocaineBundle;
 use crate::enemy::EnemyBundle;
@@ -139,6 +140,41 @@ impl TexturesMemo {
 	}
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+struct WasmResourceReader;
+
+impl ResourceReader for WasmResourceReader {
+	type Resource = &'static [u8];
+	type Error = std::io::Error;
+
+	fn read_from(&mut self, path: &Path) -> std::result::Result<Self::Resource, Self::Error> {
+		match path.to_str().expect("Given path is not a valid unicode string") {
+			"level.tmx" => {
+				Ok(&include_bytes!("../assets/level/level.tmx")[..])
+			},
+			"tileset.tsx" => {
+				Ok(&include_bytes!("../assets/level/tileset.tsx")[..])
+			},
+			other => {
+				Err(std::io::Error::new(ErrorKind::Unsupported, format!("\"{}\" is not a valid option for the WasmReader", other)))
+			}
+		}
+	}
+}
+
+trait SimpleNew {
+	fn new() -> Self;
+}
+
+fn load_tilemap() -> (Map, Tileset) {
+	let mut loader = Loader::<DefaultResourceCache, WasmResourceReader>::new();
+
+	(
+		loader.load_tmx_map("level.tmx").unwrap(),
+		loader.load_tsx_tileset("tileset.tsx").unwrap(),
+	)
+}
+
 fn load_level(
 	mut commands: Commands,
 	asset_server: Res<AssetServer>,
@@ -146,9 +182,8 @@ fn load_level(
 	mut nav_mesh: ResMut<EnemyNavMesh>,
 	mut win_materials: ResMut<Assets<WinMaterial>>,
 ) {
-	let mut loader = Loader::new();
-	let map = loader.load_tmx_map("assets/level/level.tmx").unwrap();
-	let tileset = loader.load_tsx_tileset("assets/level/tileset.tsx").unwrap();
+	let (map, tileset) = load_tilemap();
+
 	let layers = map.layers();
 
 	let mut entities = Vec::new();
@@ -159,7 +194,7 @@ fn load_level(
 			.expect("There is no wall layer in the map file!");
 
 		match wall_layer.layer_type() {
-			LayerType::TileLayer(wall_layer) => match wall_layer {
+			LayerType::Tiles(wall_layer) => match wall_layer {
 				TileLayer::Finite(_) => todo!("Maybe do this someday"),
 				TileLayer::Infinite(wall_layer) => {
 					return wall_layer.get_tile(x, y).is_some();
@@ -187,7 +222,7 @@ fn load_level(
 
 	for (layer_num, layer) in layers.enumerate() {
 		match layer.layer_type() {
-			LayerType::TileLayer(layer) => {
+			LayerType::Tiles(layer) => {
 				match layer {
 					TileLayer::Finite(_) => {
 						todo!("Implement this if there's time left.");
@@ -208,12 +243,18 @@ fn load_level(
 										);
 
 										if let Some(tile) = tileset.get_tile(tile.id()) {
+											// println!("{}", tile
+											// .image
+											// .as_ref()
+											// .unwrap()
+											// .source.display());
+
 											let image_source = tile
 												.image
 												.as_ref()
 												.unwrap()
 												.source
-												.strip_prefix("assets")
+												.strip_prefix("..")
 												.expect("what")
 												.to_path_buf();
 
