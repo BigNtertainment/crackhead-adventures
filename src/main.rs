@@ -82,7 +82,6 @@ fn main() {
         .add_plugin(WinPlugin)
         .add_plugin(CrosshairPlugin)
         .add_plugin(DebugPlugin)
-        .add_plugin(DebugLinesPlugin::default())
 
         .run();
 }
