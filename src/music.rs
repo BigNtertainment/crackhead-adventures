@@ -21,7 +21,7 @@ fn load_music(mut commands: Commands, asset_server: Res<AssetServer>) {
 }
 
 fn play_music(audio: Res<Audio>, music: Res<Music>) {
-	audio.play(music.clone()).with_volume(0.05).loop_from(9.54);
+	// audio.play(music.clone()).with_volume(0.0).loop_from(9.54);
 }
 
 fn stop_music(audio: Res<Audio>) {

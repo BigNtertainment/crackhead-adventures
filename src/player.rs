@@ -19,7 +19,7 @@ use crate::post_processing::{
 	PostProcessingLayer, ScreenRes,
 };
 use crate::tilemap::{Tile, Tilemap};
-use crate::unit::{Effect, Health, Inventory, Movement, Shooting, ShootEvent};
+use crate::unit::{Health, Inventory, Movement, Shooting, ShootEvent};
 use crate::HEIGHT;
 use crate::WIDTH;
 use crate::win::Win;
