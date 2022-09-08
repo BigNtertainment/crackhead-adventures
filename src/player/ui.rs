@@ -210,6 +210,7 @@ pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>, roboto_font: Res<R
                 .spawn_bundle(NodeBundle {
                     style: Style {
                         flex_direction: FlexDirection::ColumnReverse,
+                        size: Size::new(Val::Percent(70.0), Val::Percent(100.0)),
                         flex_grow: 1.0,
                         flex_shrink: 1.0,
                         flex_basis: Val::Percent(100.0),
@@ -272,7 +273,8 @@ pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>, roboto_font: Res<R
             parent
                 .spawn_bundle(NodeBundle {
                     style: Style {
-                        flex_direction: FlexDirection::Column,
+                        flex_direction: FlexDirection::ColumnReverse,
+                        align_items: AlignItems::FlexEnd,
                         flex_grow: 1.0,
                         flex_shrink: 1.0,
                         flex_basis: Val::Percent(100.0),
