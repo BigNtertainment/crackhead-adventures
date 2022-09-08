@@ -19,7 +19,7 @@ use crate::post_processing::{
 	PostProcessingLayer, ScreenRes,
 };
 use crate::tilemap::{Tile, Tilemap};
-use crate::unit::{Effect, Health, Inventory, Movement, Shooting, ShootEvent};
+use crate::unit::{Health, Inventory, Movement, Shooting, ShootEvent};
 use crate::HEIGHT;
 use crate::WIDTH;
 use crate::win::Win;
@@ -391,10 +391,7 @@ fn use_powerup(
 			SMALL_POWERUP_DURATION,
 		);
 
-		let powerup = small_powerup_materials.add(SmallPowerupMaterial {
-			source_image: source_image.0.clone(),
-			time: 0,
-		});
+		let powerup = small_powerup_materials.add(SmallPowerupMaterial::new(source_image.0.clone()));
 
 		// Add a post-processing effect
 		update_post_processing_effects(
@@ -418,10 +415,7 @@ fn use_powerup(
 			BIG_POWERUP_DURATION,
 		);
 
-		let powerup = big_powerup_materials.add(BigPowerupMaterial {
-			source_image: source_image.0.clone(),
-			time: 0,
-		});
+		let powerup = big_powerup_materials.add(BigPowerupMaterial::new(source_image.0.clone()));
 
 		// Add a post-processing effect
 		update_post_processing_effects(
@@ -460,7 +454,6 @@ fn update_powerup_material(
 			}
 		},
 		None => (),
-
 	}
 }
 

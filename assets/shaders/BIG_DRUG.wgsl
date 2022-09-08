@@ -6,8 +6,15 @@ var texture: texture_2d<f32>;
 @group(1) @binding(1)
 var our_sampler: sampler;
 
+struct Time {
+    time: u32,
+    padding_1: u32,
+    padding_2: u32,
+    padding_3: u32,
+}
+
 @group(1) @binding(2)
-var<uniform> time: i32;
+var<uniform> time: Time;
 
 fn adjust_hue(color: vec4<f32>, hueAdjust: f32) -> vec4<f32> {
     let kRGBToYPrime: vec4<f32> = vec4<f32>(0.299, 0.587, 0.114, 0.0);
@@ -66,7 +73,7 @@ fn fragment(
     @builtin(position) position: vec4<f32>,
     #import bevy_sprite::mesh2d_vertex_output
 ) -> @location(0) vec4<f32> {
-    let time = f32(time);
+    let time = f32(time.time);
     // Get screen position with coordinates from 0 to 1
     let uv = (position.xy / vec2<f32>(view.width, view.height));
     let offset_strength = 0.002;
