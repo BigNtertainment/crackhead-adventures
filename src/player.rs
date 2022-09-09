@@ -184,8 +184,7 @@ fn player_movement(
 
 	if direction.length() != 0.0 {
 		let shape = rapier_collider;
-		let position = transform.translation.truncate();
-		let rotation = 0.0; // transform.rotation.z;
+		let rotation =  transform.rotation.z;
 		let direction = direction.normalize().truncate();
 		let max_time_of_impact = movement.speed * TILE_SIZE * time.delta_seconds();
 
@@ -195,33 +194,39 @@ fn player_movement(
 			.exclude_collider(player_entity)
 			.predicate(&predicate);
 
+		let x_movement = if let Some((_, hit)) = rapier_context.cast_shape(
+			transform.translation.truncate(),
+			rotation,
+			direction * Vec2::new(1.0, 0.0),
+			&shape,
+			max_time_of_impact,
+			filter,
+		) {
+			direction * (hit.toi - 0.1)
+		} else {
+			direction * (max_time_of_impact - 0.1)
+		}.x;
+
+		transform.translation.x += x_movement;
+
+		let y_movement = if let Some((_, hit)) = rapier_context.cast_shape(
+			transform.translation.truncate(),
+			rotation,
+			direction * Vec2::new(0.0, 1.0),
+			&shape,
+			max_time_of_impact,
+			filter,
+		) {
+			direction * (hit.toi - 0.1)
+		} else {
+			direction * (max_time_of_impact - 0.1)
+		}.y;
+
+		transform.translation.y += y_movement;
+
 		let movement_vector = Vec2::new(
-			if let Some((_, hit)) = rapier_context.cast_shape(
-				position,
-				rotation,
-				direction * Vec2::new(1.0, 0.0),
-				&shape,
-				max_time_of_impact,
-				filter,
-			) {
-				direction * (hit.toi - 0.1)
-			} else {
-				direction * (max_time_of_impact - 0.1)
-			}
-			.x,
-			if let Some((_, hit)) = rapier_context.cast_shape(
-				position,
-				rotation,
-				direction * Vec2::new(0.0, 1.0),
-				&shape,
-				max_time_of_impact,
-				filter,
-			) {
-				direction * (hit.toi - 0.05)
-			} else {
-				direction * (max_time_of_impact - 0.05)
-			}
-			.y,
+			x_movement,
+			y_movement,
 		);
 
 		footstep_timer.tick(time.delta());
@@ -229,8 +234,6 @@ fn player_movement(
 			audio.play(footstep_sounds.choose(&mut rand::thread_rng()).expect("No footstep sounds found.").clone());
 			footstep_timer.reset();
 		}
-		
-		transform.translation += movement_vector.extend(0.0);
 	}
 }
 
