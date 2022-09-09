@@ -258,6 +258,8 @@ fn load_level(
 												.expect("what")
 												.to_path_buf();
 
+											let image_source = Path::new("./").join(image_source);
+
 											entities.push(
 												match layer_num {
 													0 => {

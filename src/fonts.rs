@@ -12,6 +12,6 @@ impl Plugin for FontPlugin {
 }
 
 fn load_fonts(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(PaintFont(asset_server.load("fonts/floyd.ttf")));
-    commands.insert_resource(RobotoFont(asset_server.load("fonts/roboto.ttf")));
+    commands.insert_resource(PaintFont(asset_server.load("./fonts/floyd.ttf")));
+    commands.insert_resource(RobotoFont(asset_server.load("./fonts/roboto.ttf")));
 }

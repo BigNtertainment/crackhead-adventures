@@ -56,7 +56,7 @@ pub struct ShotEvent(pub Entity);
 pub struct BulletTexture(Handle<Image>);
 
 fn load_bullet_texture(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(BulletTexture(asset_server.load("img/bullet.png")));
+    commands.insert_resource(BulletTexture(asset_server.load("./img/bullet.png")));
 }
 
 fn update_bullets(mut bullets: Query<(&mut Transform, &Bullet)>, time: Res<Time>) {
