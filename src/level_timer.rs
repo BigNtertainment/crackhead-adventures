@@ -2,13 +2,10 @@ use bevy::{prelude::*, time::Stopwatch};
 
 use crate::GameState;
 
-
-
 pub struct LevelTimerPlugin;
 
 #[derive(Deref,DerefMut)]
 pub struct LevelTimer(Stopwatch);
-
 
 impl Plugin for LevelTimerPlugin {
     fn build(&self, app: &mut App) {
@@ -33,5 +30,4 @@ fn pause_timer(mut level_timer: ResMut<LevelTimer>) {
 
 fn update_timer(mut level_timer: ResMut<LevelTimer>, time: Res<Time>) {
     level_timer.tick(time.delta());
-    println!("{}", level_timer.elapsed_secs());
 }

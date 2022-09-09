@@ -1,5 +1,3 @@
-use std::fmt::format;
-
 use bevy::{prelude::*, reflect::TypeUuid, render::render_resource::{AsBindGroup, ShaderRef}, sprite::{Material2d, Material2dPlugin}};
 
 use crate::{
