@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{unit::{Health, Inventory}, fonts::PaintFont};
+use crate::{unit::{Health, Inventory}, fonts::{PaintFont, RobotoFont}, level_timer::LevelTimer};
 
 use super::{Player, effect::EffectData};
 
@@ -23,9 +23,13 @@ pub struct PowerupBarContainer;
 #[derive(Component)]
 pub struct PowerupBar;
 
+#[derive(Component)]
+pub struct LevelTimerUI;
 
-pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
+
+pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>, roboto_font: Res<RobotoFont>,) {
     let font = &font.0;
+    let roboto_font = &roboto_font.0;
 
     commands
         .spawn_bundle(NodeBundle {
@@ -206,6 +210,7 @@ pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
                 .spawn_bundle(NodeBundle {
                     style: Style {
                         flex_direction: FlexDirection::ColumnReverse,
+                        size: Size::new(Val::Percent(70.0), Val::Percent(100.0)),
                         flex_grow: 1.0,
                         flex_shrink: 1.0,
                         flex_basis: Val::Percent(100.0),
@@ -268,7 +273,8 @@ pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
             parent
                 .spawn_bundle(NodeBundle {
                     style: Style {
-                        flex_direction: FlexDirection::Column,
+                        flex_direction: FlexDirection::ColumnReverse,
+                        align_items: AlignItems::FlexEnd,
                         flex_grow: 1.0,
                         flex_shrink: 1.0,
                         flex_basis: Val::Percent(100.0),
@@ -277,7 +283,26 @@ pub fn ui_setup(mut commands: Commands, font: Res<PaintFont>) {
                     color: Color::NONE.into(),
                     ..Default::default()
                 })
-                .insert(Name::new("RightSection"));
+                .insert(Name::new("RightSection"))
+                .with_children(|parent|{
+                    parent.spawn_bundle(
+                        TextBundle::from_section(
+                            "0.00",
+                            TextStyle {
+                                font: roboto_font.clone(),
+                                font_size: 32.0,
+                                color: Color::WHITE, // this needs changing
+                            },
+                        ).with_style(
+                            Style {
+                                size: Size::new(Val::Auto, Val::Auto),
+                                ..Default::default() 
+                            }   
+                        )
+                    )
+                    .insert(Name::new("Timer"))
+                    .insert(LevelTimerUI);
+                });
         });
 }
 
@@ -294,6 +319,7 @@ pub fn update_ui(
         (
             With<SmallPowerUpCounterNumber>,
             Without<BigPowerUpCounterNumber>,
+            Without<LevelTimerUI>,
         ),
     >,
     mut big_powerup_counter_query: Query<
@@ -301,6 +327,7 @@ pub fn update_ui(
         (
             With<BigPowerUpCounterNumber>,
             Without<SmallPowerUpCounterNumber>,
+            Without<LevelTimerUI>,
         ),
     >,
     mut powerup_bar_container_query: Query<
@@ -315,6 +342,15 @@ pub fn update_ui(
             Without<HealthBar>,
         ),
     >,
+    mut level_timer_ui_query: Query<
+    &mut Text,
+    (
+        With<LevelTimerUI>,
+        Without<SmallPowerUpCounterNumber>,
+        Without<BigPowerUpCounterNumber>,
+    )
+    >,
+    timer: Res<LevelTimer>,
 ) {
     let (player_health, inventory, effect_data) = player_query.single();
 
@@ -342,4 +378,7 @@ pub fn update_ui(
     } else {
         powerup_bar_container.display = Display::None;
     }
+
+    let mut level_timer_ui = level_timer_ui_query.single_mut();
+    level_timer_ui.sections[0].value = format!("{:.2}", timer.elapsed_secs());
 }
