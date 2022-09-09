@@ -17,7 +17,7 @@ impl Plugin for MusicPlugin {
 struct Music(Handle<AudioSource>);
 
 fn load_music(mut commands: Commands, asset_server: Res<AssetServer>) {
-	commands.insert_resource(Music(asset_server.load("audio/song.wav")));
+	commands.insert_resource(Music(asset_server.load("./audio/song.wav")));
 }
 
 fn play_music(audio: Res<Audio>, music: Res<Music>) {

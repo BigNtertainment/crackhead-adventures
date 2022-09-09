@@ -3,7 +3,7 @@
         "height": 4300,
         "width": 2
     },
-    "activeFile": "tileset.tsx",
+    "activeFile": "level.tmx",
     "expandedProjectPaths": [
         "."
     ],
@@ -15,8 +15,8 @@
             "scale": 0.75,
             "selectedLayer": 0,
             "viewCenter": {
-                "x": 3017.333333333333,
-                "y": 194.66666666666669
+                "x": 2961.333333333333,
+                "y": 224
             }
         },
         "tileset.tsx": {
@@ -35,8 +35,8 @@
     ],
     "project": "level.tiled-project",
     "recentFiles": [
-        "level.tmx",
-        "tileset.tsx"
+        "tileset.tsx",
+        "level.tmx"
     ],
     "tileset.lastUsedFormat": "tsx",
     "tileset.type": 1

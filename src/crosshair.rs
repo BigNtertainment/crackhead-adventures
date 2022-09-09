@@ -20,7 +20,7 @@ pub struct Crosshair;
 struct CrosshairSprite(Handle<Image>);
 
 fn load_crosshair_sprite(mut commands: Commands, asset_server: Res<AssetServer>) {
-	commands.insert_resource(CrosshairSprite(asset_server.load("img/crosshair.png")));
+	commands.insert_resource(CrosshairSprite(asset_server.load("./img/crosshair.png")));
 }
 
 fn crosshair_setup(

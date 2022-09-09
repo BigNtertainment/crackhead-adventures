@@ -28,29 +28,29 @@ impl Plugin for AudioLoadPlugin {
 }
 
 fn load_audio(mut commands: Commands, asset_server: Res<AssetServer>) {
-    commands.insert_resource(ShotgunSound(asset_server.load("audio/shot.wav")));
-    commands.insert_resource(EnemyShotSound(asset_server.load("audio/enemy_shot.wav")));
+    commands.insert_resource(ShotgunSound(asset_server.load("./audio/shot.wav")));
+    commands.insert_resource(EnemyShotSound(asset_server.load("./audio/enemy_shot.wav")));
 
     commands.insert_resource(FootstepSounds(vec![
-        asset_server.load("audio/footstep_indoor_1.wav"),
-        asset_server.load("audio/footstep_indoor_2.wav"),
-        asset_server.load("audio/footstep_indoor_3.wav"),
-        asset_server.load("audio/footstep_indoor_4.wav"),
+        asset_server.load("./audio/footstep_indoor_1.wav"),
+        asset_server.load("./audio/footstep_indoor_2.wav"),
+        asset_server.load("./audio/footstep_indoor_3.wav"),
+        asset_server.load("./audio/footstep_indoor_4.wav"),
     ]));
 
     commands.insert_resource(Screams(vec![
-        asset_server.load("audio/scream_1.wav"),
-        asset_server.load("audio/scream_2.wav"),
-        asset_server.load("audio/scream_3.wav"),
-        asset_server.load("audio/scream_4.wav"),
+        asset_server.load("./audio/scream_1.wav"),
+        asset_server.load("./audio/scream_2.wav"),
+        asset_server.load("./audio/scream_3.wav"),
+        asset_server.load("./audio/scream_4.wav"),
     ]));
 
     commands.insert_resource(SnortingSounds(vec![
-        asset_server.load("audio/snorting_1.wav"),
-        asset_server.load("audio/snorting_2.wav"),
-        asset_server.load("audio/snorting_3.wav"),
-        asset_server.load("audio/snorting_4.wav"),
+        asset_server.load("./audio/snorting_1.wav"),
+        asset_server.load("./audio/snorting_2.wav"),
+        asset_server.load("./audio/snorting_3.wav"),
+        asset_server.load("./audio/snorting_4.wav"),
     ]));
 
-    commands.insert_resource(CraftingSound(asset_server.load("audio/craft_drug.wav")));
+    commands.insert_resource(CraftingSound(asset_server.load("./audio/craft_drug.wav")));
 }

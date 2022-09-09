@@ -63,6 +63,12 @@ pub struct SmallPowerupMaterial {
 	pub source_image: Handle<Image>,
 	#[uniform(2)]
 	pub time: u32,
+	#[uniform(2)]
+	pub _wasm_padding_0: u32,
+	#[uniform(2)]
+	pub _wasm_padding_1: u32,
+	#[uniform(2)]
+	pub _wasm_padding_2: u32,
 }
 
 impl Material2d for SmallPowerupMaterial {
@@ -71,6 +77,17 @@ impl Material2d for SmallPowerupMaterial {
 	}
 }
 
+impl SmallPowerupMaterial {
+	pub fn new(source_image: Handle<Image>) -> Self {
+		Self {
+			source_image,
+			time: 0,
+			_wasm_padding_0: 0,
+			_wasm_padding_1: 0,
+			_wasm_padding_2: 0,
+		}
+	}
+}
 
 #[derive(AsBindGroup, TypeUuid, Clone)]
 #[uuid = "2cf6b4dc-23f2-11ed-861d-0242ac120002"]
@@ -81,10 +98,28 @@ pub struct BigPowerupMaterial {
 	pub source_image: Handle<Image>,
 	#[uniform(2)]
 	pub time: u32,
+	#[uniform(2)]
+	pub _wasm_padding_0: u32,
+	#[uniform(2)]
+	pub _wasm_padding_1: u32,
+	#[uniform(2)]
+	pub _wasm_padding_2: u32,
 }
 
 impl Material2d for BigPowerupMaterial {
 	fn fragment_shader() -> ShaderRef {
 		"shaders/BIG_DRUG.wgsl".into()
+	}
+}
+
+impl BigPowerupMaterial {
+	pub fn new(source_image: Handle<Image>) -> Self {
+		Self {
+			source_image,
+			time: 0,
+			_wasm_padding_0: 0,
+			_wasm_padding_1: 0,
+			_wasm_padding_2: 0,
+		}
 	}
 }
