@@ -1,5 +1,5 @@
 [package]
-name = "weekly-game-jam-267"
+name = "crackhead-adventures"
 version = "0.1.0"
 edition = "2021"
 
@@ -10,7 +10,7 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
-lto = "thin"
+# lto = "thin" i need this off for builind release build for linux 
 strip="debuginfo"
 
 [features]
