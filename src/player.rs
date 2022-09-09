@@ -198,7 +198,7 @@ fn player_movement(
 			transform.translation.truncate(),
 			rotation,
 			direction * Vec2::new(1.0, 0.0),
-			&shape,
+			shape,
 			max_time_of_impact,
 			filter,
 		) {
@@ -213,7 +213,7 @@ fn player_movement(
 			transform.translation.truncate(),
 			rotation,
 			direction * Vec2::new(0.0, 1.0),
-			&shape,
+			shape,
 			max_time_of_impact,
 			filter,
 		) {
@@ -255,6 +255,7 @@ fn damage_yourself(
 ) {
 	let mut player_health = player_query.single_mut();
 
+	#[allow(clippy::collapsible_if)]
 	if cfg!(debug_assertions) && keyboard.just_pressed(KeyCode::Space) {
 		if player_health.take_damage(rand::thread_rng().gen::<f32>() * 10.0 + 10.0) {
 			state
@@ -487,6 +488,7 @@ fn craft_magic_dust(
 	let mut inventory = player_query.single_mut();
 
 	// Press T to craft magic dust
+	#[allow(clippy::collapsible_if)]
 	if keyboard.just_pressed(KeyCode::T) {
 		if inventory.subtract_small_powerup(3) {
 			inventory.add_big_powerup(1);
@@ -510,6 +512,7 @@ fn get_shot(
 			continue;
 		}
 
+		#[allow(clippy::collapsible_if)]
 		if health.take_damage(25.0 + random::<f32>() * 10.0) {
 			if state.set(GameState::GameOver).is_err() {}
 		}
@@ -526,6 +529,7 @@ fn win_condition(
 	for win in win.iter() {
 		let distance = (player_position - win.translation).length();
 
+		#[allow(clippy::collapsible_if)]
 		if distance < TILE_SIZE {
 			if state.set(GameState::Win).is_err() {}
 		}

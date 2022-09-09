@@ -88,10 +88,10 @@ impl Inventory {
 
 	pub fn subtract_small_powerup(&mut self, amount: usize) -> bool {
 		if amount > self.small_powerups {
-			return false;
+			false
 		} else {
 			self.small_powerups -= amount;
-			return true;
+			true
 		}
 	}
 
@@ -105,10 +105,10 @@ impl Inventory {
 
 	pub fn subtract_big_powerup(&mut self, amount: usize) -> bool {
 		if amount > self.big_powerups {
-			return false;
+			false
 		} else {
 			self.big_powerups -= amount;
-			return true;
+			true
 		}
 	}
 

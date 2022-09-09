@@ -4,7 +4,7 @@ use std::path::{PathBuf, Path};
 
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
-use tiled::{Chunk, LayerType, Loader, TileLayer, Tileset, Map, ResourceReader, ResourceCache, DefaultResourceCache};
+use tiled::{Chunk, LayerType, Loader, TileLayer, Tileset, Map, ResourceReader, DefaultResourceCache};
 
 use crate::cocaine::CocaineBundle;
 use crate::enemy::EnemyBundle;

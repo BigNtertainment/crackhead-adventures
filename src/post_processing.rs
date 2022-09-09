@@ -134,7 +134,7 @@ fn set_post_processing_effects<M: Material2d>(
 	let screen = commands
 		.spawn_bundle(MaterialMesh2dBundle {
 			mesh: quad_handle.into(),
-			material: material,
+			material,
 			transform: Transform {
 				translation: Vec3::new(0.0, 0.0, 1.5),
 				..default()

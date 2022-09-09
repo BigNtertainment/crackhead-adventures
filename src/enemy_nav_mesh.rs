@@ -70,7 +70,7 @@ impl EnemyNavMesh {
 			print!("({}, {}), ", area.center.x, area.center.y);
 		}
 
-		println!("");
+		println!();
 	}
 
 	pub fn draw(&self, lines: &mut ResMut<DebugLines>) {

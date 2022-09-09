@@ -50,7 +50,7 @@ pub fn clean_post_processing(
 		screen,
 		material_handle,
 		meshes,
-		&post_processing_pass_layer,
+		post_processing_pass_layer,
 	);
 }
 

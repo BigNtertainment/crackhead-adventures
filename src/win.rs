@@ -80,7 +80,7 @@ impl Material2d for WinMaterial {
 
 fn update_win_material(win: Query<(&Handle<WinMaterial>, &Handle<Image>)>, time: Res<Time>, mut win_materials: ResMut<Assets<WinMaterial>>) {
 	for (win_material, texture) in win.iter() {
-		let mut win_material = win_materials.get_mut(&win_material).unwrap();
+		let mut win_material = win_materials.get_mut(win_material).unwrap();
 
 		win_material.source_image = texture.clone();
 		win_material.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
