@@ -4,7 +4,6 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 use bevy_kira_audio::{Audio, AudioControl};
-use bevy_prototype_debug_lines::DebugLines;
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
 use rand::random;
