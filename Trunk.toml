@@ -1,4 +1,2 @@
-# An example Trunk.toml with all possible fields along with their defaults.
-
 [build]
 public_url = "./"
