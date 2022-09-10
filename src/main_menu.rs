@@ -62,23 +62,6 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 				.insert(Name::new("Title"));
 
 			parent
-				.spawn_bundle(
-					TextBundle::from_section(
-						"Give me your fun dust or I will fckin murder you",
-						TextStyle {
-							font: paint_font.0.clone(),
-							font_size: 32.0,
-							color: Color::WHITE,
-						},
-					)
-					.with_style(Style {
-						margin: UiRect::all(Val::Px(5.0)),
-						..default()
-					}),
-				)
-				.insert(Name::new("Subtitle"));
-
-			parent
 				.spawn_bundle(NodeBundle {
 					style: Style {
 						size: Size::new(Val::Percent(50.0), Val::Px(50.0)),
