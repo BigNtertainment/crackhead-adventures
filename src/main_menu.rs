@@ -129,6 +129,46 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 							));
 						});
 				});
+
+			parent
+				.spawn_bundle(NodeBundle {
+					style: Style {
+						size: Size::new(Val::Percent(100.0), Val::Auto),
+						justify_content: JustifyContent::FlexEnd,
+						align_items: AlignItems::FlexStart,
+						align_self: AlignSelf::FlexEnd,
+						position: UiRect::new(
+							Val::Px(0.0),
+							Val::Px(0.0),
+							Val::Px(200.0),
+							Val::Px(0.0),
+						),
+						..Default::default()
+					},
+					color: Color::NONE.into(),
+					..Default::default()
+				})
+				.insert(Name::new("VersionContainer"))
+				.with_children(|parent| {
+				parent
+					.spawn_bundle(
+						TextBundle::from_section(
+							format!("v{}", env!("CARGO_PKG_VERSION")),
+							TextStyle {
+								font: paint_font.0.clone(),
+								font_size: 16.0,
+								color: Color::WHITE,
+							},
+						)
+						.with_style(Style {
+							margin: UiRect::all(Val::Px(5.0)),
+							..default()
+						}),
+					)
+					.insert(Name::new("Version"));
+				});
+
+
 		});
 }
 
