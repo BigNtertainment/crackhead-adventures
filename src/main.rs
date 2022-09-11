@@ -27,6 +27,7 @@ mod enemy_nav_mesh;
 mod audio;
 mod music;
 mod level_timer;
+mod settings;
 
 use bullet::BulletPlugin;
 use button::ButtonPlugin;
@@ -38,6 +39,7 @@ use music::MusicPlugin;
 use player::PlayerPlugin;
 use debug::DebugPlugin;
 use post_processing::PostProcessingPlugin;
+use settings::SettingsPlugin;
 use tilemap::TileMapPlugin;
 use game_over::GameOverPlugin;
 use audio::AudioLoadPlugin;
@@ -47,6 +49,7 @@ use level_timer::LevelTimerPlugin;
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum GameState {
     MainMenu,
+    Settings,
     Game,
     GameOver,
     Win,
@@ -85,6 +88,7 @@ fn main() {
         .add_plugin(CrosshairPlugin)
         .add_plugin(DebugPlugin)
         .add_plugin(LevelTimerPlugin)
+        .add_plugin(SettingsPlugin)
         .add_plugin(DebugLinesPlugin::default())
 
         .run();

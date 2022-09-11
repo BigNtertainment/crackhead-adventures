@@ -23,7 +23,8 @@ impl Plugin for MainMenuPlugin {
 			.add_system_set(
 				SystemSet::on_update(GameState::MainMenu)
 					.with_system(play_button)
-					.with_system(exit_button),
+					.with_system(exit_button)
+					.with_system(settings_button),
 			)
 			.add_system_set(SystemSet::on_exit(GameState::MainMenu).with_system(drop_ui));
 	}
@@ -213,6 +214,18 @@ fn play_button(
 		#[allow(clippy::collapsible_if)]
 		if *interaction == Interaction::Clicked {
 			if state.set(GameState::Game).is_err() {}
+		}
+	}
+}
+
+fn settings_button(
+	mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SettingsButton>)>,
+	mut state: ResMut<State<GameState>>,
+) {
+	for interaction in &mut interaction_query {
+		#[allow(clippy::collapsible_if)]
+		if *interaction == Interaction::Clicked {
+			if state.set(GameState::Settings).is_err() {}
 		}
 	}
 }
