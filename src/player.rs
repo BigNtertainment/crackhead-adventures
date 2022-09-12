@@ -494,7 +494,6 @@ fn craft_magic_dust(
 			inventory.add_big_powerup(1);
 			audio.play(crafting_sound.clone()).with_volume(0.1);
 		}
-
 	}
 }
 

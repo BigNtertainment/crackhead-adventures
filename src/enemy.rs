@@ -17,7 +17,7 @@ use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::post_processing::MainCamera;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
-use crate::unit::{Movement, ShootEvent, Shooting, Health};
+use crate::unit::{Movement, ShootEvent, Shooting};
 use crate::{GameState, TILE_SIZE};
 
 pub const ENEMY_SIGHT: f32 = 12.0 * TILE_SIZE;
