@@ -357,6 +357,8 @@ fn get_shot(
 			continue;
 		}
 
+		
+
 		if let Some(enemy_transform) = world.get::<Transform>(enemy) {
 			// Spawn the enemy body
 			let body = commands

@@ -18,6 +18,7 @@ use crate::post_processing::{
 	update_post_processing_effects, CameraRenderImage, DefaultMaterial, MainCamera,
 	PostProcessingLayer, ScreenRes,
 };
+use crate::stats::Stats;
 use crate::tilemap::{Tile, Tilemap};
 use crate::unit::{Health, Inventory, Movement, Shooting, ShootEvent};
 use crate::HEIGHT;
@@ -288,6 +289,7 @@ fn player_shoot(
 	audio: Res<Audio>,
 	shot_sound: Res<ShotgunSound>,
 	bullet_texture: Res<BulletTexture>,
+	mut stats: ResMut<Stats>,
 ) {
 	let (player_transform, mut shooting) = player_query.single_mut();
 	let world = world_query.single();
@@ -327,6 +329,8 @@ fn player_shoot(
 
 		audio.play(shot_sound.clone()).with_volume(0.05);
 
+		stats.shot_fired += 1;
+
 		event_shot.send(ShootEvent(player_transform.translation.truncate()));
 
 		// Reset the cooldown timer
@@ -361,6 +365,7 @@ fn use_powerup(
 	mut small_powerup_materials: ResMut<Assets<SmallPowerupMaterial>>,
 	mut big_powerup_materials: ResMut<Assets<BigPowerupMaterial>>,
 	mut meshes: ResMut<Assets<Mesh>>,
+	mut stats: ResMut<Stats>,
 ) {
 	let (mut inventory, mut movement, mut health, mut effect_data) = player_query.single_mut();
 
@@ -409,6 +414,8 @@ fn use_powerup(
 		active_effect.0 = Some(PowerupMaterial::SmallPowerup(powerup));
 
 		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
+		
+		stats.small_powerup_used += 1;
 	}
 	// Big powerup is under R
 	else if keyboard.just_pressed(KeyCode::R) && inventory.subtract_big_powerup(1) {
@@ -433,6 +440,7 @@ fn use_powerup(
 		active_effect.0 = Some(PowerupMaterial::BigPowerup(powerup));
 		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
 
+		stats.big_powerup_used += 1;
 	}
 }
 
@@ -465,6 +473,7 @@ fn pick_up_cocaine(
 	mut commands: Commands,
 	mut player_query: Query<(&mut Inventory, &Transform), With<Player>>,
 	cocaine_query: Query<(Entity, &Transform), With<Cocaine>>,
+	mut stats: ResMut<Stats>,
 ) {
 	let (mut player_inventory, player_transform) = player_query.single_mut();
 
@@ -474,6 +483,7 @@ fn pick_up_cocaine(
 			<= TILE_SIZE / 2.0
 		{
 			player_inventory.add_small_powerup(1);
+			stats.small_powerup_collected += 1;
 			commands.entity(cocaine).despawn_recursive();
 		}
 	}
@@ -484,6 +494,7 @@ fn craft_magic_dust(
 	keyboard: Res<Input<KeyCode>>,
 	audio: Res<Audio>,
 	crafting_sound: Res<CraftingSound>,
+	mut stats: ResMut<Stats>,
 ) {
 	let mut inventory = player_query.single_mut();
 
@@ -492,6 +503,7 @@ fn craft_magic_dust(
 	if keyboard.just_pressed(KeyCode::T) {
 		if inventory.subtract_small_powerup(3) {
 			inventory.add_big_powerup(1);
+			stats.big_powerup_crafted += 1;
 			audio.play(crafting_sound.clone()).with_volume(0.1);
 		}
 
@@ -502,6 +514,7 @@ fn get_shot(
 	mut player_query: Query<(Entity, &mut Health), With<Player>>,
 	mut shot_events: EventReader<ShotEvent>,
 	mut state: ResMut<State<GameState>>,
+	mut stats: ResMut<Stats>
 ) {
 	let (player, mut health) = player_query.single_mut();
 
@@ -512,8 +525,12 @@ fn get_shot(
 			continue;
 		}
 
+		let damage = 25.0 + random::<f32>() * 10.0;
+
+		stats.damage_taken += damage.min(health.get_health());
+
 		#[allow(clippy::collapsible_if)]
-		if health.take_damage(25.0 + random::<f32>() * 10.0) {
+		if health.take_damage(damage) {
 			if state.set(GameState::GameOver).is_err() {}
 		}
 	}
