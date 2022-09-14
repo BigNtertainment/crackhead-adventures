@@ -25,6 +25,7 @@ mod game_over;
 mod crosshair;
 mod enemy_nav_mesh;
 mod audio;
+mod audio_player;
 mod music;
 mod level_timer;
 mod settings;

@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{GameState, fonts::{PaintFont, RobotoFont}};
+use crate::GameState;
 
 #[derive(Component)]
 struct SettingsUi;
@@ -8,18 +8,18 @@ struct SettingsUi;
 pub struct SettingsPlugin;
 
 pub struct Settings {
-    sfx_volume: f32,
-    music_volume: f32,
+    pub sfx_volume: f64,
+    pub music_volume: f64,
 }
 
 impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Settings { sfx_volume: 1.0, music_volume: 1.0 })
-        .add_system_set(SystemSet::on_enter(GameState::Settings).with_system(load_ui));
+			.add_system_set(SystemSet::on_enter(GameState::Settings).with_system(load_ui));
     }
 }
 
-fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<RobotoFont>) {
+fn load_ui(mut commands: Commands) {
 	commands
 		.spawn_bundle(NodeBundle {
 			style: Style {

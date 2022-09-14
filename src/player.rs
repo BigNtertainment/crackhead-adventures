@@ -10,7 +10,10 @@ use rand::prelude::*;
 
 use rand::seq::SliceRandom;
 
-use crate::audio::{ShotgunSound, FootstepSounds, SnortingSounds, CraftingSound};
+use crate::audio::{CraftingSound, FootstepSounds, ShotgunSound, SnortingSounds};
+use crate::audio_player::{
+	AudioPlayer, PLAYER_FOOTSTEP_VOLUME, PLAYER_SHOT_VOLUME, PLAYER_SNORTING_VOLUME, PLAYER_CRAFTING_VOLUME,
+};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
@@ -18,11 +21,12 @@ use crate::post_processing::{
 	update_post_processing_effects, CameraRenderImage, DefaultMaterial, MainCamera,
 	PostProcessingLayer, ScreenRes,
 };
+use crate::settings::Settings;
 use crate::tilemap::{Tile, Tilemap};
-use crate::unit::{Health, Inventory, Movement, Shooting, ShootEvent};
+use crate::unit::{Health, Inventory, Movement, ShootEvent, Shooting};
+use crate::win::Win;
 use crate::HEIGHT;
 use crate::WIDTH;
-use crate::win::Win;
 use crate::{GameState, TILE_SIZE};
 
 mod effect;
@@ -51,8 +55,16 @@ impl Plugin for PlayerPlugin {
 			.register_type::<Movement>()
 			.insert_resource(ActiveMaterial(None))
 			.add_event::<ShootEvent>()
-			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup).with_system(setup_footstep_timer))
-			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui).with_system(drop_footstep_timer))
+			.add_system_set(
+				SystemSet::on_enter(GameState::Game)
+					.with_system(ui_setup)
+					.with_system(setup_footstep_timer),
+			)
+			.add_system_set(
+				SystemSet::on_exit(GameState::Game)
+					.with_system(drop_ui)
+					.with_system(drop_footstep_timer),
+			)
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
@@ -152,10 +164,11 @@ fn player_movement(
 	enemy_query: Query<Entity, (With<Enemy>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
+	settings: Res<Settings>,
 	audio: Res<Audio>,
 	rapier_context: Res<RapierContext>,
 	footstep_sounds: Res<FootstepSounds>,
-	mut footstep_timer: ResMut<FootstepTimer>
+	mut footstep_timer: ResMut<FootstepTimer>,
 ) {
 	let (player_entity, movement, mut transform, rapier_collider) = player_query
 		.iter_mut()
@@ -184,7 +197,7 @@ fn player_movement(
 
 	if direction.length() != 0.0 {
 		let shape = rapier_collider;
-		let rotation =  transform.rotation.z;
+		let rotation = transform.rotation.z;
 		let direction = direction.normalize().truncate();
 		let max_time_of_impact = movement.speed * TILE_SIZE * time.delta_seconds();
 
@@ -205,7 +218,8 @@ fn player_movement(
 			direction * (hit.toi - 0.1)
 		} else {
 			direction * (max_time_of_impact - 0.1)
-		}.x;
+		}
+		.x;
 
 		transform.translation.x += x_movement;
 
@@ -220,18 +234,24 @@ fn player_movement(
 			direction * (hit.toi - 0.1)
 		} else {
 			direction * (max_time_of_impact - 0.1)
-		}.y;
+		}
+		.y;
 
 		transform.translation.y += y_movement;
 
-		let movement_vector = Vec2::new(
-			x_movement,
-			y_movement,
-		);
+		let movement_vector = Vec2::new(x_movement, y_movement);
 
 		footstep_timer.tick(time.delta());
 		if movement_vector != Vec2::ZERO && footstep_timer.finished() {
-			audio.play(footstep_sounds.choose(&mut rand::thread_rng()).expect("No footstep sounds found.").clone());
+			AudioPlayer::play_sfx(
+				audio.as_ref(),
+				footstep_sounds
+					.choose(&mut rand::thread_rng())
+					.expect("No footstep sounds found.")
+					.clone(),
+				PLAYER_FOOTSTEP_VOLUME,
+				settings.as_ref(),
+			);
 			footstep_timer.reset();
 		}
 	}
@@ -282,9 +302,10 @@ fn player_shoot(
 	mut commands: Commands,
 	mut player_query: Query<(&Transform, &mut Shooting), With<Player>>,
 	world_query: Query<Entity, With<Tilemap>>,
-    mut event_shot: EventWriter<ShootEvent>,
+	mut event_shot: EventWriter<ShootEvent>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
+	settings: Res<Settings>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotgunSound>,
 	bullet_texture: Res<BulletTexture>,
@@ -325,7 +346,12 @@ fn player_shoot(
 
 		commands.entity(world).push_children(&bullets);
 
-		audio.play(shot_sound.clone()).with_volume(0.05);
+		AudioPlayer::play_sfx(
+			audio.into_inner(),
+			shot_sound.clone(),
+			PLAYER_SHOT_VOLUME,
+			settings.into_inner(),
+		);
 
 		event_shot.send(ShootEvent(player_transform.translation.truncate()));
 
@@ -351,6 +377,7 @@ fn use_powerup(
 	>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
+	settings: Res<Settings>,
 	audio: Res<Audio>,
 	snorting_sounds: Res<SnortingSounds>,
 	post_processing_pass_layer: Res<PostProcessingLayer>,
@@ -395,7 +422,8 @@ fn use_powerup(
 			SMALL_POWERUP_DURATION,
 		);
 
-		let powerup = small_powerup_materials.add(SmallPowerupMaterial::new(source_image.0.clone()));
+		let powerup =
+			small_powerup_materials.add(SmallPowerupMaterial::new(source_image.0.clone()));
 
 		// Add a post-processing effect
 		update_post_processing_effects(
@@ -408,7 +436,15 @@ fn use_powerup(
 
 		active_effect.0 = Some(PowerupMaterial::SmallPowerup(powerup));
 
-		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
+		AudioPlayer::play_sfx(
+			audio.as_ref(),
+			snorting_sounds
+				.choose(&mut rand::thread_rng())
+				.expect("No snorting sounds!")
+				.clone(),
+			PLAYER_SNORTING_VOLUME,
+			settings.as_ref(),
+		);
 	}
 	// Big powerup is under R
 	else if keyboard.just_pressed(KeyCode::R) && inventory.subtract_big_powerup(1) {
@@ -431,8 +467,15 @@ fn use_powerup(
 		);
 
 		active_effect.0 = Some(PowerupMaterial::BigPowerup(powerup));
-		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
-
+		AudioPlayer::play_sfx(
+			audio.as_ref(),
+			snorting_sounds
+				.choose(&mut rand::thread_rng())
+				.expect("No snorting sounds!")
+				.clone(),
+			PLAYER_SNORTING_VOLUME,
+			settings.as_ref(),
+		);
 	}
 }
 
@@ -443,18 +486,16 @@ fn update_powerup_material(
 	time: Res<Time>,
 ) {
 	match &mut active_effect.0 {
-		Some(powerup) => {
-			match powerup {
-				PowerupMaterial::SmallPowerup(powerup) => {
-					let mut powerup = small_powerup_materials.get_mut(powerup).unwrap();
+		Some(powerup) => match powerup {
+			PowerupMaterial::SmallPowerup(powerup) => {
+				let mut powerup = small_powerup_materials.get_mut(powerup).unwrap();
 
-					powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
-				},
-				PowerupMaterial::BigPowerup(powerup) => {
-					let mut powerup = big_powerup_materials.get_mut(powerup).unwrap();
+				powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
+			}
+			PowerupMaterial::BigPowerup(powerup) => {
+				let mut powerup = big_powerup_materials.get_mut(powerup).unwrap();
 
-					powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
-				}
+				powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
 			}
 		},
 		None => (),
@@ -483,6 +524,7 @@ fn craft_magic_dust(
 	mut player_query: Query<&mut Inventory, With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
 	audio: Res<Audio>,
+	settings: Res<Settings>,
 	crafting_sound: Res<CraftingSound>,
 ) {
 	let mut inventory = player_query.single_mut();
@@ -492,9 +534,13 @@ fn craft_magic_dust(
 	if keyboard.just_pressed(KeyCode::T) {
 		if inventory.subtract_small_powerup(3) {
 			inventory.add_big_powerup(1);
-			audio.play(crafting_sound.clone()).with_volume(0.1);
+			AudioPlayer::play_sfx(
+				audio.as_ref(),
+				crafting_sound.clone(),
+				PLAYER_CRAFTING_VOLUME,
+				settings.as_ref()
+			);
 		}
-
 	}
 }
 

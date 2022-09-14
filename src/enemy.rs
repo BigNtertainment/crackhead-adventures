@@ -3,17 +3,21 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy_kira_audio::{Audio, AudioControl};
+use bevy_kira_audio::Audio;
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
 use rand::random;
 use rand::seq::SliceRandom;
 
 use crate::audio::{EnemyShotSound, Screams};
-use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent, BULLET_COLLIDER_WIDTH, BULLET_COLLIDER_HEIGHT};
+use crate::audio_player::{AudioPlayer, ENEMY_SHOT_VOLUME, ENEMY_DEATH_SCREAM_VOLUME};
+use crate::bullet::{
+	Bullet, BulletBundle, BulletTexture, ShotEvent, BULLET_COLLIDER_HEIGHT, BULLET_COLLIDER_WIDTH,
+};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::post_processing::MainCamera;
+use crate::settings::Settings;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
 use crate::unit::{Movement, ShootEvent, Shooting};
 use crate::{GameState, TILE_SIZE};
@@ -158,6 +162,7 @@ fn update_enemy_ai(
 	mut shoot_event: EventWriter<ShootEvent>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
+	settings: Res<Settings>,
 	windows: Res<Windows>,
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
@@ -226,7 +231,12 @@ fn update_enemy_ai(
 
 						commands.entity(tilemap).push_children(&[bullet]);
 
-						audio.play(shot_sound.clone()).with_volume(0.1);
+						AudioPlayer::play_sfx(
+							audio.as_ref(),
+							shot_sound.clone(),
+							ENEMY_SHOT_VOLUME,
+							settings.as_ref(),
+						);
 
 						shoot_event.send(ShootEvent(position));
 
@@ -345,6 +355,7 @@ fn get_shot(
 	mut shot_events: EventReader<ShotEvent>,
 	enemy_textures: Res<EnemyTextures>,
 	audio: Res<Audio>,
+	settings: Res<Settings>,
 	screams: Res<Screams>,
 ) {
 	let tilemap = tilemap_query.single();
@@ -372,14 +383,15 @@ fn get_shot(
 
 			commands.entity(tilemap).push_children(&[body]);
 
-			audio
-				.play(
-					screams
-						.choose(&mut rand::thread_rng())
-						.expect("No scream sounds found.")
-						.clone(),
-				)
-				.with_volume(0.3);
+			AudioPlayer::play_sfx(
+				audio.as_ref(),
+				screams
+					.choose(&mut rand::thread_rng())
+					.expect("No scream sounds found.")
+					.clone(),
+				ENEMY_DEATH_SCREAM_VOLUME,
+				settings.as_ref()
+			);
 
 			// Spawn a few blood splatters
 			let temp: Vec<u32> = (0..4).collect();
