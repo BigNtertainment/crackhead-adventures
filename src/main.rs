@@ -1,5 +1,6 @@
 #![deny(unused_must_use)]
 
+use audio_player::AudioPlayerPlugin;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use bevy_prototype_debug_lines::*;
@@ -25,6 +26,7 @@ mod game_over;
 mod crosshair;
 mod enemy_nav_mesh;
 mod audio;
+mod audio_player;
 mod music;
 mod level_timer;
 
@@ -73,6 +75,7 @@ fn main() {
         .add_plugin(MusicPlugin)
         .add_plugin(PostProcessingPlugin)
         .add_plugin(AudioLoadPlugin)
+        .add_plugin(AudioPlayerPlugin)
         .add_plugin(FontPlugin)
         .add_plugin(ButtonPlugin)
         .add_plugin(TileMapPlugin)
