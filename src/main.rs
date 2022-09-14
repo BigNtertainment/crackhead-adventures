@@ -50,6 +50,7 @@ pub enum GameState {
     Game,
     GameOver,
     Win,
+    Stats,
 }
 
 fn main() {

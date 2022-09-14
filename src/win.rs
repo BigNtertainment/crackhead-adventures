@@ -17,6 +17,9 @@ struct WinUi;
 struct PlayAgainButton;
 
 #[derive(Component)]
+struct StatsButton;
+
+#[derive(Component)]
 struct MainMenuButton;
 
 pub struct WinPlugin;
@@ -190,6 +193,32 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 						.with_children(|parent| {
 							parent.spawn_bundle(TextBundle::from_section(
 								"Play again",
+								TextStyle {
+									font: roboto_font.0.clone(),
+									font_size: 32.0,
+									color: Color::BLACK,
+								},
+							));
+						});
+
+					parent
+						.spawn_bundle(ButtonBundle {
+							style: Style {
+								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								justify_content: JustifyContent::Center,
+								align_items: AlignItems::Center,
+								..Default::default()
+							},
+							button: Button,
+							color: Color::RED.into(),
+							..Default::default()
+						})
+						.insert(Name::new("StatsButton"))
+						.insert(StatsButton)
+						.insert(ColoredButton::default())
+						.with_children(|parent| {
+							parent.spawn_bundle(TextBundle::from_section(
+								"Stats",
 								TextStyle {
 									font: roboto_font.0.clone(),
 									font_size: 32.0,

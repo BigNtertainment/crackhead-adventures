@@ -1,6 +1,12 @@
 use bevy::{prelude::*, time::Stopwatch};
 
-use crate::GameState;
+use crate::{GameState, fonts::{PaintFont, RobotoFont}, button::ColoredButton};
+
+#[derive(Component)]
+struct StatsUi;
+#[derive(Component)]
+
+struct MainMenuButton;
 
 pub struct StatsPlugin;
 
@@ -32,7 +38,10 @@ impl Plugin for StatsPlugin {
         })
            .add_system_set(SystemSet::on_enter(GameState::Game).with_system(reset_stats))
            .add_system_set(SystemSet::on_exit(GameState::Game).with_system(calculate_stats))
-           .add_system_set(SystemSet::on_update(GameState::Game).with_system(update_stats));
+           .add_system_set(SystemSet::on_update(GameState::Game).with_system(update_stats))
+           .add_system_set(SystemSet::on_enter(GameState::Stats).with_system(load_ui))
+           .add_system_set(SystemSet::on_update(GameState::Stats).with_system(main_menu_button))
+           .add_system_set(SystemSet::on_exit(GameState::Stats).with_system(drop_ui));
         
         
     }
@@ -65,4 +74,257 @@ fn calculate_stats(mut stats: ResMut<Stats>) {
     }
 
     println!("{:?}", stats);
+}
+
+fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<RobotoFont>, stats: Res<Stats>) {
+    let paint_font = &paint_font.0;
+    let roboto_font = &roboto_font.0;
+
+	commands
+		.spawn_bundle(NodeBundle {
+			style: Style {
+				size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+				justify_content: JustifyContent::FlexStart,
+				align_items: AlignItems::FlexStart,
+				flex_direction: FlexDirection::ColumnReverse,
+                padding: UiRect::new(Val::Px(100.0), Val::Px(0.0), Val::Px(-10.0), Val::Px(0.0)),
+				..Default::default()
+			},
+			color: UiColor(Color::BLACK),
+			..Default::default()
+		})
+		.insert(StatsUi)
+		.insert(Name::new("Ui"))
+        .with_children(|parent| {
+            parent
+				.spawn_bundle(NodeBundle {
+					style: Style {
+						size: Size::new(Val::Percent(50.0), Val::Px(50.0)),
+						justify_content: JustifyContent::FlexStart,
+						flex_direction: FlexDirection::ColumnReverse,
+						align_items: AlignItems::FlexStart,
+						margin: UiRect::new(Val::Px(0.0), Val::Px(0.0), Val::Px(100.0), Val::Px(0.0)),
+						..Default::default()
+					},
+					color: Color::NONE.into(),
+					..Default::default()
+				})
+				.insert(Name::new("ButtonsContainer"))
+				.with_children(|parent| {
+
+                    parent
+						.spawn_bundle(ButtonBundle {
+							style: Style {
+								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								justify_content: JustifyContent::Center,
+								align_items: AlignItems::Center,
+								..Default::default()
+							},
+							button: Button,
+							color: Color::RED.into(),
+							..Default::default()
+						})
+						.insert(Name::new("MainMenuButton"))
+						.insert(MainMenuButton)
+						.insert(ColoredButton::default())
+						.with_children(|parent| {
+							parent
+								.spawn_bundle(TextBundle::from_section(
+									"Main Menu",
+									TextStyle {
+										font: roboto_font.clone(),
+										font_size: 32.0,
+										color: Color::BLACK
+									}
+								));
+                    });
+                });
+
+            parent.spawn_bundle(NodeBundle {
+                style: Style {
+                    size: Size::new(Val::Percent(100.0), Val::Percent(100.0)),
+                    justify_content: JustifyContent::FlexStart,
+                    align_items: AlignItems::FlexStart,
+                    flex_direction: FlexDirection::ColumnReverse,
+                    margin: UiRect::new(Val::Px(0.0), Val::Px(0.0), Val::Px(100.0), Val::Px(0.0)),
+                    ..Default::default()
+                },
+                color: UiColor(Color::BLACK),
+                ..Default::default()
+            })
+            .insert(Name::new("Stats Container"))
+            .with_children(|parent| {
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Level finished in: {:.2}s", stats.timer.elapsed_secs()),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Time"));
+
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Enemies killed: {}", stats.enemies_killed),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Killed Enemies"));
+
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Damage taken: {:.2}", stats.damage_taken),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Damage Taken"));
+
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Shots Taken: {}", stats.shot_fired),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Shots Taken"));
+
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Shot Accuracy: {:.2}%", stats.shot_accuracy),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Shot Accuracy"));
+
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Cocaine snorted: {}", stats.small_powerup_used),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Small Power Ups Used"));
+
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Cocaine stolen: {}", stats.small_powerup_collected),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Small Power Ups Collected"));
+
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Fun Dust administered: {}", stats.big_powerup_used),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Big Power Ups Used"));
+
+                parent
+				.spawn_bundle(
+					TextBundle::from_section(
+						format!("Fun Dust crafted: {}", stats.big_powerup_crafted),
+						TextStyle {
+							font: paint_font.clone(),
+							font_size: 32.0,
+							color: Color::WHITE,
+						},
+					)
+					.with_style(Style {
+						margin: UiRect::all(Val::Px(5.0)),
+						..default()
+					}),
+				)
+				.insert(Name::new("Big Power Ups Crafted"));
+            });
+        });
+}
+
+fn drop_ui(mut commands: Commands, ui: Query<Entity, With<StatsUi>>) {
+	let ui = ui.single();
+	commands.entity(ui).despawn_recursive();
+}
+
+fn main_menu_button(
+	mut interaction_query: Query<
+		&Interaction,
+		(Changed<Interaction>, With<MainMenuButton>)
+	>,
+	mut state: ResMut<State<GameState>>
+) {
+	for interaction in &mut interaction_query {
+		if *interaction == Interaction::Clicked {
+			state.set(GameState::MainMenu).expect("Failed to change state!");
+		}
+	}
 }
