@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{GameState, fonts::{PaintFont, RobotoFont}, button::ColoredButton, level_timer::LevelTimer};
+use crate::{GameState, fonts::{PaintFont, RobotoFont}, button::ColoredButton, stats::Stats};
 
 #[derive(Component)]
 struct GameOverUi;
@@ -32,7 +32,7 @@ impl Plugin for GameOverPlugin {
 	}
 }
 
-fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<RobotoFont>, timer: Res<LevelTimer>) {
+fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<RobotoFont>, stats: Res<Stats>) {
 	commands
 		.spawn_bundle(NodeBundle {
 			style: Style {
@@ -85,7 +85,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 			parent
 				.spawn_bundle(
 					TextBundle::from_section(
-						format!("You died in {:.2}s", timer.elapsed_secs()),
+						format!("You died in {:.2}s", stats.timer.elapsed_secs()),
 						TextStyle {
 							font: paint_font.0.clone(),
 							font_size: 32.0,

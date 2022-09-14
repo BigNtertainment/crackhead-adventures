@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{unit::{Health, Inventory}, fonts::{PaintFont, RobotoFont}, level_timer::LevelTimer};
+use crate::{unit::{Health, Inventory}, fonts::{PaintFont, RobotoFont}, stats::Stats};
 
 use super::{Player, effect::EffectData};
 
@@ -350,7 +350,7 @@ pub fn update_ui(
         Without<BigPowerUpCounterNumber>,
     )
     >,
-    timer: Res<LevelTimer>,
+    stats: Res<Stats>,
 ) {
     let (player_health, inventory, effect_data) = player_query.single();
 
@@ -380,5 +380,5 @@ pub fn update_ui(
     }
 
     let mut level_timer_ui = level_timer_ui_query.single_mut();
-    level_timer_ui.sections[0].value = format!("{:.2}", timer.elapsed_secs());
+    level_timer_ui.sections[0].value = format!("{:.2}", stats.timer.elapsed_secs());
 }

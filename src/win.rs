@@ -4,7 +4,7 @@ use crate::{
 	button::ColoredButton,
 	fonts::{PaintFont, RobotoFont},
 	tilemap::Tile,
-	GameState, level_timer::LevelTimer,
+	GameState, stats::Stats,
 };
 
 #[derive(Component, Default)]
@@ -87,7 +87,7 @@ fn update_win_material(win: Query<(&Handle<WinMaterial>, &Handle<Image>)>, time:
 	}
 }
 
-fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<RobotoFont>, timer: Res<LevelTimer>) {
+fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<RobotoFont>, stats: Res<Stats>) {
 	commands
 		.spawn_bundle(NodeBundle {
 			style: Style {
@@ -140,7 +140,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 			parent
 				.spawn_bundle(
 					TextBundle::from_section(
-						format!("You got the spice in {:.2}s", timer.elapsed_secs()),
+						format!("You got the spice in {:.2}s", stats.timer.elapsed_secs()),
 						TextStyle {
 							font: paint_font.0.clone(),
 							font_size: 32.0,
