@@ -33,6 +33,7 @@ impl Plugin for WinPlugin {
 				
 					.with_system(update_win_material)
 					.with_system(play_again_button)
+					.with_system(stats_button)
 					.with_system(main_menu_button),
 			)
 			.add_system_set(SystemSet::on_exit(GameState::Win).with_system(drop_ui));
@@ -160,8 +161,10 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 			parent
 				.spawn_bundle(NodeBundle {
 					style: Style {
-						size: Size::new(Val::Percent(50.0), Val::Px(50.0)),
+						size: Size::new(Val::Percent(50.0), Val::Px(250.0)),
 						justify_content: JustifyContent::SpaceBetween,
+						flex_direction: FlexDirection::ColumnReverse,
+						align_items: AlignItems::Center,
 						margin: UiRect::new(
 							Val::Px(0.0),
 							Val::Px(0.0),
@@ -178,7 +181,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 					parent
 						.spawn_bundle(ButtonBundle {
 							style: Style {
-								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								size: Size::new(Val::Px(300.0), Val::Percent(20.0)),
 								justify_content: JustifyContent::Center,
 								align_items: AlignItems::Center,
 								..Default::default()
@@ -204,7 +207,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 					parent
 						.spawn_bundle(ButtonBundle {
 							style: Style {
-								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								size: Size::new(Val::Px(300.0), Val::Percent(20.0)),
 								justify_content: JustifyContent::Center,
 								align_items: AlignItems::Center,
 								..Default::default()
@@ -230,7 +233,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 					parent
 						.spawn_bundle(ButtonBundle {
 							style: Style {
-								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								size: Size::new(Val::Px(300.0), Val::Percent(20.0)),
 								justify_content: JustifyContent::Center,
 								align_items: AlignItems::Center,
 								..Default::default()
@@ -268,6 +271,20 @@ fn play_again_button(
 	for interaction in &mut interaction_query {
 		if *interaction == Interaction::Clicked {
 			state.set(GameState::Game).expect("Failed to change state!");
+		}
+	}
+}
+
+fn stats_button(
+	mut interaction_query: Query<
+		&Interaction,
+		(Changed<Interaction>, With<StatsButton>)
+	>,
+	mut state: ResMut<State<GameState>>
+) {
+	for interaction in &mut interaction_query {
+		if *interaction == Interaction::Clicked {
+			state.set(GameState::Stats).expect("Failed to change state!");
 		}
 	}
 }

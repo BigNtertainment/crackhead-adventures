@@ -10,10 +10,13 @@ use rand::random;
 use rand::seq::SliceRandom;
 
 use crate::audio::{EnemyShotSound, Screams};
-use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent, BULLET_COLLIDER_WIDTH, BULLET_COLLIDER_HEIGHT};
+use crate::bullet::{
+	Bullet, BulletBundle, BulletTexture, ShotEvent, BULLET_COLLIDER_HEIGHT, BULLET_COLLIDER_WIDTH,
+};
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::post_processing::MainCamera;
+use crate::stats::Stats;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
 use crate::unit::{Movement, ShootEvent, Shooting};
 use crate::{GameState, TILE_SIZE};
@@ -338,28 +341,30 @@ fn update_enemy_texture(
 }
 
 fn get_shot(
-	world: &World,
 	mut commands: Commands,
 	tilemap_query: Query<Entity, With<Tilemap>>,
-	enemy_query: Query<Entity, With<Enemy>>,
+	enemy_query: Query<(Entity, &Transform), With<Enemy>>,
 	mut shot_events: EventReader<ShotEvent>,
 	enemy_textures: Res<EnemyTextures>,
 	audio: Res<Audio>,
 	screams: Res<Screams>,
+	mut stats: ResMut<Stats>,
 ) {
 	let tilemap = tilemap_query.single();
-	let mut enemies: Vec<Entity> = enemy_query.iter().collect();
+	let mut enemies: Vec<(Entity, &Transform)> = enemy_query.iter().collect();
 
 	for shot in shot_events.iter() {
-		let enemy = shot.0;
+		let shot_entity = shot.0;
 
-		if !enemies.contains(&enemy) {
-			continue;
-		}
+		let index = enemies.iter().position(|enemy| enemy.0 == shot_entity);
 
-		
+		if let Some(index) = index {
+			let enemy_tuple = enemies[index];
+			let enemy_transform = enemy_tuple.1;
+			let enemy = enemy_tuple.0;
 
-		if let Some(enemy_transform) = world.get::<Transform>(enemy) {
+			stats.enemies_killed += 1;
+
 			// Spawn the enemy body
 			let body = commands
 				.spawn_bundle(EnemyBodyBundle {
@@ -416,7 +421,6 @@ fn get_shot(
 
 			commands.entity(enemy).despawn_recursive();
 
-			let index = enemies.iter().position(|_enemy| *_enemy == enemy).unwrap();
 			enemies.remove(index);
 		}
 	}
