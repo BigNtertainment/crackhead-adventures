@@ -10,7 +10,7 @@ use rand::prelude::*;
 
 use rand::seq::SliceRandom;
 
-use crate::audio::{ShotgunSound, FootstepSounds, SnortingSounds, CraftingSound};
+use crate::audio::{CraftingSound, FootstepSounds, ShotgunSound, SnortingSounds};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
@@ -20,10 +20,10 @@ use crate::post_processing::{
 };
 use crate::stats::Stats;
 use crate::tilemap::{Tile, Tilemap};
-use crate::unit::{Health, Inventory, Movement, Shooting, ShootEvent};
+use crate::unit::{Health, Inventory, Movement, ShootEvent, Shooting};
+use crate::win::Win;
 use crate::HEIGHT;
 use crate::WIDTH;
-use crate::win::Win;
 use crate::{GameState, TILE_SIZE};
 
 mod effect;
@@ -52,8 +52,16 @@ impl Plugin for PlayerPlugin {
 			.register_type::<Movement>()
 			.insert_resource(ActiveMaterial(None))
 			.add_event::<ShootEvent>()
-			.add_system_set(SystemSet::on_enter(GameState::Game).with_system(ui_setup).with_system(setup_footstep_timer))
-			.add_system_set(SystemSet::on_exit(GameState::Game).with_system(drop_ui).with_system(drop_footstep_timer))
+			.add_system_set(
+				SystemSet::on_enter(GameState::Game)
+					.with_system(ui_setup)
+					.with_system(setup_footstep_timer),
+			)
+			.add_system_set(
+				SystemSet::on_exit(GameState::Game)
+					.with_system(drop_ui)
+					.with_system(drop_footstep_timer),
+			)
 			.add_system_set(
 				SystemSet::on_update(GameState::Game)
 					.with_system(player_movement.label("player_movement"))
@@ -156,7 +164,7 @@ fn player_movement(
 	audio: Res<Audio>,
 	rapier_context: Res<RapierContext>,
 	footstep_sounds: Res<FootstepSounds>,
-	mut footstep_timer: ResMut<FootstepTimer>
+	mut footstep_timer: ResMut<FootstepTimer>,
 ) {
 	let (player_entity, movement, mut transform, rapier_collider) = player_query
 		.iter_mut()
@@ -185,7 +193,7 @@ fn player_movement(
 
 	if direction.length() != 0.0 {
 		let shape = rapier_collider;
-		let rotation =  transform.rotation.z;
+		let rotation = transform.rotation.z;
 		let direction = direction.normalize().truncate();
 		let max_time_of_impact = movement.speed * TILE_SIZE * time.delta_seconds();
 
@@ -206,7 +214,8 @@ fn player_movement(
 			direction * (hit.toi - 0.1)
 		} else {
 			direction * (max_time_of_impact - 0.1)
-		}.x;
+		}
+		.x;
 
 		transform.translation.x += x_movement;
 
@@ -221,18 +230,21 @@ fn player_movement(
 			direction * (hit.toi - 0.1)
 		} else {
 			direction * (max_time_of_impact - 0.1)
-		}.y;
+		}
+		.y;
 
 		transform.translation.y += y_movement;
 
-		let movement_vector = Vec2::new(
-			x_movement,
-			y_movement,
-		);
+		let movement_vector = Vec2::new(x_movement, y_movement);
 
 		footstep_timer.tick(time.delta());
 		if movement_vector != Vec2::ZERO && footstep_timer.finished() {
-			audio.play(footstep_sounds.choose(&mut rand::thread_rng()).expect("No footstep sounds found.").clone());
+			audio.play(
+				footstep_sounds
+					.choose(&mut rand::thread_rng())
+					.expect("No footstep sounds found.")
+					.clone(),
+			);
 			footstep_timer.reset();
 		}
 	}
@@ -281,17 +293,19 @@ fn player_aim(mut player_query: Query<&mut Transform, With<Player>>, window: Res
 
 fn player_shoot(
 	mut commands: Commands,
-	mut player_query: Query<(&Transform, &mut Shooting), With<Player>>,
+	mut player_query: Query<(Entity, &Transform, &mut Shooting), With<Player>>,
 	world_query: Query<Entity, With<Tilemap>>,
-    mut event_shot: EventWriter<ShootEvent>,
+	mut event_shot: EventWriter<ShootEvent>,
+	mut shot_event: EventWriter<ShotEvent>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
+	rapier_context: Res<RapierContext>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotgunSound>,
 	bullet_texture: Res<BulletTexture>,
 	mut stats: ResMut<Stats>,
 ) {
-	let (player_transform, mut shooting) = player_query.single_mut();
+	let (player, player_transform, mut shooting) = player_query.single_mut();
 	let world = world_query.single();
 
 	shooting.cooldown.tick(time.delta());
@@ -301,31 +315,44 @@ fn player_shoot(
 	}
 
 	if buttons.just_pressed(MouseButton::Left) {
-		// Spawn the bullets
-		let mut bullets = Vec::new();
+		// If the target is really close, treat the bullets as hitscan
+		let filter = QueryFilter::default().exclude_collider(player);
 
-		for i in 1..5 {
-			let mut bullet_transform = player_transform
-				.with_translation(player_transform.translation + player_transform.up() * TILE_SIZE);
-
-			bullet_transform.rotate_z((i - 2) as f32 * (0.02 + random::<f32>() * 0.01));
-
-			bullets.push(
-				commands
-					.spawn_bundle(BulletBundle {
-						sprite_bundle: SpriteBundle {
-							transform: bullet_transform,
-							texture: bullet_texture.clone(),
+		if let Some((hit_entity, _)) = rapier_context.cast_ray(
+			player_transform.translation.truncate(),
+			player_transform.up().truncate(),
+			TILE_SIZE / 2.0,
+			true,
+			filter,
+		) {
+			shot_event.send(ShotEvent(hit_entity));
+		} else {
+			// Spawn the bullets
+			let mut bullets = Vec::new();
+	
+			for i in 1..5 {
+				let mut bullet_transform = player_transform
+					.with_translation(player_transform.translation + player_transform.up() * (TILE_SIZE / 2.0 + 1.0));
+	
+				bullet_transform.rotate_z((i - 2) as f32 * (0.02 + random::<f32>() * 0.01));
+	
+				bullets.push(
+					commands
+						.spawn_bundle(BulletBundle {
+							sprite_bundle: SpriteBundle {
+								transform: bullet_transform,
+								texture: bullet_texture.clone(),
+								..Default::default()
+							},
+							bullet: Bullet { speed: 2000.0 },
 							..Default::default()
-						},
-						bullet: Bullet { speed: 2000.0 },
-						..Default::default()
-					})
-					.id(),
-			);
+						})
+						.id(),
+				);
+			}
+	
+			commands.entity(world).push_children(&bullets);
 		}
-
-		commands.entity(world).push_children(&bullets);
 
 		audio.play(shot_sound.clone()).with_volume(0.05);
 
@@ -400,7 +427,8 @@ fn use_powerup(
 			SMALL_POWERUP_DURATION,
 		);
 
-		let powerup = small_powerup_materials.add(SmallPowerupMaterial::new(source_image.0.clone()));
+		let powerup =
+			small_powerup_materials.add(SmallPowerupMaterial::new(source_image.0.clone()));
 
 		// Add a post-processing effect
 		update_post_processing_effects(
@@ -413,7 +441,14 @@ fn use_powerup(
 
 		active_effect.0 = Some(PowerupMaterial::SmallPowerup(powerup));
 
-		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
+		audio
+			.play(
+				snorting_sounds
+					.choose(&mut rand::thread_rng())
+					.expect("No snorting sounds!")
+					.clone(),
+			)
+			.with_volume(0.1);
 		
 		stats.small_powerup_used += 1;
 	}
@@ -438,8 +473,14 @@ fn use_powerup(
 		);
 
 		active_effect.0 = Some(PowerupMaterial::BigPowerup(powerup));
-		audio.play(snorting_sounds.choose(&mut rand::thread_rng()).expect("No snorting sounds!").clone()).with_volume(0.1);
-
+		audio
+			.play(
+				snorting_sounds
+					.choose(&mut rand::thread_rng())
+					.expect("No snorting sounds!")
+					.clone(),
+			)
+			.with_volume(0.1);
 		stats.big_powerup_used += 1;
 	}
 }
@@ -451,18 +492,16 @@ fn update_powerup_material(
 	time: Res<Time>,
 ) {
 	match &mut active_effect.0 {
-		Some(powerup) => {
-			match powerup {
-				PowerupMaterial::SmallPowerup(powerup) => {
-					let mut powerup = small_powerup_materials.get_mut(powerup).unwrap();
+		Some(powerup) => match powerup {
+			PowerupMaterial::SmallPowerup(powerup) => {
+				let mut powerup = small_powerup_materials.get_mut(powerup).unwrap();
 
-					powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
-				},
-				PowerupMaterial::BigPowerup(powerup) => {
-					let mut powerup = big_powerup_materials.get_mut(powerup).unwrap();
+				powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
+			}
+			PowerupMaterial::BigPowerup(powerup) => {
+				let mut powerup = big_powerup_materials.get_mut(powerup).unwrap();
 
-					powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
-				}
+				powerup.time = (time.seconds_since_startup() * 1000.0).floor() as u32;
 			}
 		},
 		None => (),
@@ -506,7 +545,6 @@ fn craft_magic_dust(
 			stats.big_powerup_crafted += 1;
 			audio.play(crafting_sound.clone()).with_volume(0.1);
 		}
-
 	}
 }
 

@@ -159,6 +159,7 @@ fn update_enemy_ai(
 		),
 	>,
 	mut shoot_event: EventWriter<ShootEvent>,
+	mut shot_event: EventWriter<ShotEvent>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
 	windows: Res<Windows>,
@@ -210,28 +211,18 @@ fn update_enemy_ai(
 
 					if enemy.shock_timer.finished() && shooting.cooldown.finished() {
 						// Shoot at the player
-						let mut bullet_transform = transform
-							.with_translation(transform.translation + transform.up() * TILE_SIZE);
-
-						bullet_transform.rotate_z(random::<f32>() * 0.05);
-
-						let bullet = commands
-							.spawn_bundle(BulletBundle {
-								sprite_bundle: SpriteBundle {
-									transform: bullet_transform,
-									texture: bullet_texture.clone(),
-									..Default::default()
-								},
-								bullet: Bullet { speed: 2000.0 },
-								..Default::default()
-							})
-							.id();
-
-						commands.entity(tilemap).push_children(&[bullet]);
+						shoot(
+							&mut commands,
+							&transform,
+							&player_transform,
+							&player,
+							&tilemap,
+							bullet_texture.clone(),
+							&mut shoot_event,
+							&mut shot_event,
+						);
 
 						audio.play(shot_sound.clone()).with_volume(0.1);
-
-						shoot_event.send(ShootEvent(position));
 
 						shooting.cooldown.reset();
 					}
@@ -259,6 +250,45 @@ fn update_enemy_ai(
 			enemy.shock_timer.reset();
 		}
 	}
+}
+
+fn shoot(
+	commands: &mut Commands,
+	enemy_transform: &Transform,
+	player_transform: &Transform,
+	player_entity: &Entity,
+	tilemap: &Entity,
+	bullet_texture: Handle<Image>,
+	shoot_event: &mut EventWriter<ShootEvent>,
+	shot_event: &mut EventWriter<ShotEvent>,
+) {
+	let distance = (enemy_transform.translation - player_transform.translation).truncate().length();
+
+	// If the player is up close, shoot as hitscan
+	if distance >= TILE_SIZE {
+		let mut bullet_transform = enemy_transform
+			.with_translation(enemy_transform.translation + enemy_transform.up() * TILE_SIZE);
+
+		bullet_transform.rotate_z(random::<f32>() * 0.05);
+
+		let bullet = commands
+			.spawn_bundle(BulletBundle {
+				sprite_bundle: SpriteBundle {
+					transform: bullet_transform,
+					texture: bullet_texture,
+					..Default::default()
+				},
+				bullet: Bullet { speed: 2000.0 },
+				..Default::default()
+			})
+			.id();
+
+		commands.entity(*tilemap).push_children(&[bullet]);
+	} else {
+		shot_event.send(ShotEvent(*player_entity));
+	}
+
+	shoot_event.send(ShootEvent(enemy_transform.translation.truncate()));
 }
 
 fn alert_on_shot_sound(
