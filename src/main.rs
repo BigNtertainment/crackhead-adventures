@@ -5,6 +5,15 @@ use bevy_rapier2d::prelude::*;
 use bevy_prototype_debug_lines::*;
 use bevy_kira_audio::prelude::*;
 
+// we dont need those things in wasm build since they are for setting window icon
+#[cfg(not(target_arch="wasm32"))]
+use bevy::window::WindowId;
+#[cfg(not(target_arch="wasm32"))]
+use bevy::winit::WinitWindows;
+#[cfg(not(target_arch="wasm32"))]
+use winit::window::Icon;
+
+
 pub const WIDTH: f32 = 1280.0;
 pub const HEIGHT: f32 = 720.0;
 pub const TILE_SIZE: f32 = 50.0;
@@ -56,6 +65,33 @@ pub enum GameState {
     Win,
 }
 
+#[cfg(not(target_arch="wasm32"))]
+fn set_window_icon(
+    // we have to use `NonSend` here
+    windows: NonSend<WinitWindows>,
+) {
+    let primary = windows.get_window(WindowId::primary()).unwrap();
+
+    // here we use the `image` crate to load our icon data from a png file
+    // this is not a very bevy-native solution, but it will do
+    let (icon_rgba, icon_width, icon_height) = {
+        let image = image::open("./assets/img/enemy_ded.png")
+            .expect("Failed to open icon path")
+            .into_rgba8();
+        let (width, height) = image.dimensions();
+        let rgba = image.into_raw();
+        (rgba, width, height)
+    };
+
+    let icon = Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap();
+
+    primary.set_window_icon(Some(icon));
+}
+
+// we cant set window icon on website so we have to do this thing
+#[cfg(target_arch="wasm32")]
+fn set_window_icon(){}
+
 fn main() {
     App::new()
         // States
@@ -69,6 +105,10 @@ fn main() {
             resizable: false,
             ..Default::default()
         })
+
+        // Setting window icon
+        
+        .add_startup_system(set_window_icon)
 
         // Plugins
         .add_plugins(DefaultPlugins)
