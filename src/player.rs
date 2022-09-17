@@ -306,14 +306,14 @@ fn player_shoot(
 	mut event_shot: EventWriter<ShootEvent>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
-	rapier_context: Res<RapierContext>,
+	_rapier_context: Res<RapierContext>,
 	settings: Res<Settings>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotgunSound>,
 	bullet_texture: Res<BulletTexture>,
 	mut stats: ResMut<Stats>,
 ) {
-	let (player, player_transform, mut shooting) = player_query.single_mut();
+	let (_player, player_transform, mut shooting) = player_query.single_mut();
 	let world = world_query.single();
 
 	shooting.cooldown.tick(time.delta());
@@ -451,6 +451,8 @@ fn use_powerup(
 			PLAYER_SNORTING_VOLUME,
 			settings.as_ref(),
 		);
+
+		stats.small_powerup_used += 1;
 	}
 	// Big powerup is under R
 	else if keyboard.just_pressed(KeyCode::R) && inventory.subtract_big_powerup(1) {
@@ -482,6 +484,8 @@ fn use_powerup(
 			PLAYER_SNORTING_VOLUME,
 			settings.as_ref(),
 		);
+
+		stats.big_powerup_used += 1;
 	}
 }
 
@@ -549,6 +553,7 @@ fn craft_magic_dust(
 				PLAYER_CRAFTING_VOLUME,
 				settings.as_ref()
 			);
+			stats.big_powerup_crafted += 1;
 		}
 	}
 }
