@@ -11,6 +11,9 @@ use rand::prelude::*;
 use rand::seq::SliceRandom;
 
 use crate::audio::{CraftingSound, FootstepSounds, ShotgunSound, SnortingSounds};
+use crate::audio_player::{
+	AudioPlayer, PLAYER_FOOTSTEP_VOLUME, PLAYER_SHOT_VOLUME, PLAYER_SNORTING_VOLUME, PLAYER_CRAFTING_VOLUME,
+};
 use crate::bullet::{Bullet, BulletBundle, BulletTexture, ShotEvent};
 use crate::cocaine::Cocaine;
 use crate::enemy::Enemy;
@@ -18,6 +21,7 @@ use crate::post_processing::{
 	update_post_processing_effects, CameraRenderImage, DefaultMaterial, MainCamera,
 	PostProcessingLayer, ScreenRes,
 };
+use crate::settings::Settings;
 use crate::stats::Stats;
 use crate::tilemap::{Tile, Tilemap};
 use crate::unit::{Health, Inventory, Movement, ShootEvent, Shooting};
@@ -161,6 +165,7 @@ fn player_movement(
 	enemy_query: Query<Entity, (With<Enemy>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
+	settings: Res<Settings>,
 	audio: Res<Audio>,
 	rapier_context: Res<RapierContext>,
 	footstep_sounds: Res<FootstepSounds>,
@@ -239,11 +244,14 @@ fn player_movement(
 
 		footstep_timer.tick(time.delta());
 		if movement_vector != Vec2::ZERO && footstep_timer.finished() {
-			audio.play(
+			AudioPlayer::play_sfx(
+				audio.as_ref(),
 				footstep_sounds
 					.choose(&mut rand::thread_rng())
 					.expect("No footstep sounds found.")
 					.clone(),
+				PLAYER_FOOTSTEP_VOLUME,
+				settings.as_ref(),
 			);
 			footstep_timer.reset();
 		}
@@ -296,10 +304,10 @@ fn player_shoot(
 	mut player_query: Query<(Entity, &Transform, &mut Shooting), With<Player>>,
 	world_query: Query<Entity, With<Tilemap>>,
 	mut event_shot: EventWriter<ShootEvent>,
-	mut shot_event: EventWriter<ShotEvent>,
 	buttons: Res<Input<MouseButton>>,
 	time: Res<Time>,
 	rapier_context: Res<RapierContext>,
+	settings: Res<Settings>,
 	audio: Res<Audio>,
 	shot_sound: Res<ShotgunSound>,
 	bullet_texture: Res<BulletTexture>,
@@ -315,46 +323,38 @@ fn player_shoot(
 	}
 
 	if buttons.just_pressed(MouseButton::Left) {
-		// If the target is really close, treat the bullets as hitscan
-		let filter = QueryFilter::default().exclude_collider(player);
+		// Spawn the bullets
+		let mut bullets = Vec::new();
 
-		if let Some((hit_entity, _)) = rapier_context.cast_ray(
-			player_transform.translation.truncate(),
-			player_transform.up().truncate(),
-			TILE_SIZE / 2.0,
-			true,
-			filter,
-		) {
-			shot_event.send(ShotEvent(hit_entity));
-		} else {
-			// Spawn the bullets
-			let mut bullets = Vec::new();
-	
-			for i in 1..5 {
-				let mut bullet_transform = player_transform
-					.with_translation(player_transform.translation + player_transform.up() * (TILE_SIZE / 2.0 + 1.0));
-	
-				bullet_transform.rotate_z((i - 2) as f32 * (0.02 + random::<f32>() * 0.01));
-	
-				bullets.push(
-					commands
-						.spawn_bundle(BulletBundle {
-							sprite_bundle: SpriteBundle {
-								transform: bullet_transform,
-								texture: bullet_texture.clone(),
-								..Default::default()
-							},
-							bullet: Bullet { speed: 2000.0 },
+		for i in 1..5 {
+			let mut bullet_transform = player_transform
+				.with_translation(player_transform.translation + player_transform.up() * TILE_SIZE);
+
+			bullet_transform.rotate_z((i - 2) as f32 * (0.02 + random::<f32>() * 0.01));
+
+			bullets.push(
+				commands
+					.spawn_bundle(BulletBundle {
+						sprite_bundle: SpriteBundle {
+							transform: bullet_transform,
+							texture: bullet_texture.clone(),
 							..Default::default()
-						})
-						.id(),
-				);
-			}
-	
-			commands.entity(world).push_children(&bullets);
+						},
+						bullet: Bullet { speed: 2000.0 },
+						..Default::default()
+					})
+					.id(),
+			);
 		}
 
-		audio.play(shot_sound.clone()).with_volume(0.05);
+		commands.entity(world).push_children(&bullets);
+
+		AudioPlayer::play_sfx(
+			audio.into_inner(),
+			shot_sound.clone(),
+			PLAYER_SHOT_VOLUME,
+			settings.into_inner(),
+		);
 
 		stats.shot_fired += 1;
 
@@ -382,6 +382,7 @@ fn use_powerup(
 	>,
 	keyboard: Res<Input<KeyCode>>,
 	time: Res<Time>,
+	settings: Res<Settings>,
 	audio: Res<Audio>,
 	snorting_sounds: Res<SnortingSounds>,
 	post_processing_pass_layer: Res<PostProcessingLayer>,
@@ -441,16 +442,15 @@ fn use_powerup(
 
 		active_effect.0 = Some(PowerupMaterial::SmallPowerup(powerup));
 
-		audio
-			.play(
-				snorting_sounds
-					.choose(&mut rand::thread_rng())
-					.expect("No snorting sounds!")
-					.clone(),
-			)
-			.with_volume(0.1);
-		
-		stats.small_powerup_used += 1;
+		AudioPlayer::play_sfx(
+			audio.as_ref(),
+			snorting_sounds
+				.choose(&mut rand::thread_rng())
+				.expect("No snorting sounds!")
+				.clone(),
+			PLAYER_SNORTING_VOLUME,
+			settings.as_ref(),
+		);
 	}
 	// Big powerup is under R
 	else if keyboard.just_pressed(KeyCode::R) && inventory.subtract_big_powerup(1) {
@@ -473,15 +473,15 @@ fn use_powerup(
 		);
 
 		active_effect.0 = Some(PowerupMaterial::BigPowerup(powerup));
-		audio
-			.play(
-				snorting_sounds
-					.choose(&mut rand::thread_rng())
-					.expect("No snorting sounds!")
-					.clone(),
-			)
-			.with_volume(0.1);
-		stats.big_powerup_used += 1;
+		AudioPlayer::play_sfx(
+			audio.as_ref(),
+			snorting_sounds
+				.choose(&mut rand::thread_rng())
+				.expect("No snorting sounds!")
+				.clone(),
+			PLAYER_SNORTING_VOLUME,
+			settings.as_ref(),
+		);
 	}
 }
 
@@ -532,6 +532,7 @@ fn craft_magic_dust(
 	mut player_query: Query<&mut Inventory, With<Player>>,
 	keyboard: Res<Input<KeyCode>>,
 	audio: Res<Audio>,
+	settings: Res<Settings>,
 	crafting_sound: Res<CraftingSound>,
 	mut stats: ResMut<Stats>,
 ) {
@@ -542,8 +543,12 @@ fn craft_magic_dust(
 	if keyboard.just_pressed(KeyCode::T) {
 		if inventory.subtract_small_powerup(3) {
 			inventory.add_big_powerup(1);
-			stats.big_powerup_crafted += 1;
-			audio.play(crafting_sound.clone()).with_volume(0.1);
+			AudioPlayer::play_sfx(
+				audio.as_ref(),
+				crafting_sound.clone(),
+				PLAYER_CRAFTING_VOLUME,
+				settings.as_ref()
+			);
 		}
 	}
 }
