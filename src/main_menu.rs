@@ -169,7 +169,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 						position: UiRect::new(
 							Val::Px(0.0),
 							Val::Px(0.0),
-							Val::Px(200.0),
+							Val::Px(120.0),
 							Val::Px(0.0),
 						),
 						..Default::default()
