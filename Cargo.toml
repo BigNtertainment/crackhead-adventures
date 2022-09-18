@@ -1,6 +1,6 @@
 [package]
 name = "crackhead-adventures"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 
 [profile.dev]
@@ -51,3 +51,5 @@ bevy_prototype_debug_lines = "0.8"
 navmesh = { git = "https://github.com/Pietrek14/navmesh", features = ["web"] }
 tiled = { git = "https://github.com/Pietrek14/rs-tiled.git", branch = "next", default-features = false }
 rand = "0.8.5"
+winit = "0.26.1"
+image = "0.24.3"

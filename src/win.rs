@@ -4,7 +4,7 @@ use crate::{
 	button::ColoredButton,
 	fonts::{PaintFont, RobotoFont},
 	tilemap::Tile,
-	GameState, level_timer::LevelTimer,
+	GameState, stats::Stats,
 };
 
 #[derive(Component, Default)]
@@ -15,6 +15,9 @@ struct WinUi;
 
 #[derive(Component)]
 struct PlayAgainButton;
+
+#[derive(Component)]
+struct StatsButton;
 
 #[derive(Component)]
 struct MainMenuButton;
@@ -30,6 +33,7 @@ impl Plugin for WinPlugin {
 				
 					.with_system(update_win_material)
 					.with_system(play_again_button)
+					.with_system(stats_button)
 					.with_system(main_menu_button),
 			)
 			.add_system_set(SystemSet::on_exit(GameState::Win).with_system(drop_ui));
@@ -87,7 +91,7 @@ fn update_win_material(win: Query<(&Handle<WinMaterial>, &Handle<Image>)>, time:
 	}
 }
 
-fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<RobotoFont>, timer: Res<LevelTimer>) {
+fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<RobotoFont>, stats: Res<Stats>) {
 	commands
 		.spawn_bundle(NodeBundle {
 			style: Style {
@@ -140,7 +144,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 			parent
 				.spawn_bundle(
 					TextBundle::from_section(
-						format!("You got the spice in {:.2}s", timer.elapsed_secs()),
+						format!("You got the spice in {:.2}s", stats.timer.elapsed_secs()),
 						TextStyle {
 							font: paint_font.0.clone(),
 							font_size: 32.0,
@@ -157,8 +161,10 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 			parent
 				.spawn_bundle(NodeBundle {
 					style: Style {
-						size: Size::new(Val::Percent(50.0), Val::Px(50.0)),
+						size: Size::new(Val::Percent(50.0), Val::Px(250.0)),
 						justify_content: JustifyContent::SpaceBetween,
+						flex_direction: FlexDirection::ColumnReverse,
+						align_items: AlignItems::Center,
 						margin: UiRect::new(
 							Val::Px(0.0),
 							Val::Px(0.0),
@@ -175,7 +181,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 					parent
 						.spawn_bundle(ButtonBundle {
 							style: Style {
-								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								size: Size::new(Val::Px(300.0), Val::Percent(20.0)),
 								justify_content: JustifyContent::Center,
 								align_items: AlignItems::Center,
 								..Default::default()
@@ -201,7 +207,33 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 					parent
 						.spawn_bundle(ButtonBundle {
 							style: Style {
-								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								size: Size::new(Val::Px(300.0), Val::Percent(20.0)),
+								justify_content: JustifyContent::Center,
+								align_items: AlignItems::Center,
+								..Default::default()
+							},
+							button: Button,
+							color: Color::RED.into(),
+							..Default::default()
+						})
+						.insert(Name::new("StatsButton"))
+						.insert(StatsButton)
+						.insert(ColoredButton::default())
+						.with_children(|parent| {
+							parent.spawn_bundle(TextBundle::from_section(
+								"Stats",
+								TextStyle {
+									font: roboto_font.0.clone(),
+									font_size: 32.0,
+									color: Color::BLACK,
+								},
+							));
+						});
+
+					parent
+						.spawn_bundle(ButtonBundle {
+							style: Style {
+								size: Size::new(Val::Px(300.0), Val::Percent(20.0)),
 								justify_content: JustifyContent::Center,
 								align_items: AlignItems::Center,
 								..Default::default()
@@ -239,6 +271,20 @@ fn play_again_button(
 	for interaction in &mut interaction_query {
 		if *interaction == Interaction::Clicked {
 			state.set(GameState::Game).expect("Failed to change state!");
+		}
+	}
+}
+
+fn stats_button(
+	mut interaction_query: Query<
+		&Interaction,
+		(Changed<Interaction>, With<StatsButton>)
+	>,
+	mut state: ResMut<State<GameState>>
+) {
+	for interaction in &mut interaction_query {
+		if *interaction == Interaction::Clicked {
+			state.set(GameState::Stats).expect("Failed to change state!");
 		}
 	}
 }

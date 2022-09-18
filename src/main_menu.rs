@@ -14,6 +14,7 @@ struct SettingsButton;
 #[derive(Component)]
 struct ExitButton;
 
+
 pub struct MainMenuPlugin;
 
 impl Plugin for MainMenuPlugin {
@@ -22,7 +23,8 @@ impl Plugin for MainMenuPlugin {
 			.add_system_set(
 				SystemSet::on_update(GameState::MainMenu)
 					.with_system(play_button)
-					.with_system(exit_button),
+					.with_system(exit_button)
+					.with_system(settings_button),
 			)
 			.add_system_set(SystemSet::on_exit(GameState::MainMenu).with_system(drop_ui));
 	}
@@ -64,8 +66,10 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 			parent
 				.spawn_bundle(NodeBundle {
 					style: Style {
-						size: Size::new(Val::Percent(50.0), Val::Px(50.0)),
+						size: Size::new(Val::Percent(50.0), Val::Px(200.0)),
 						justify_content: JustifyContent::SpaceBetween,
+						flex_direction: FlexDirection::ColumnReverse,
+						align_items: AlignItems::Center,
 						margin: UiRect::new(
 							Val::Px(0.0),
 							Val::Px(0.0),
@@ -82,7 +86,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 					parent
 						.spawn_bundle(ButtonBundle {
 							style: Style {
-								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								size: Size::new(Val::Px(300.0), Val::Px(50.0)),
 								justify_content: JustifyContent::Center,
 								align_items: AlignItems::Center,
 								..Default::default()
@@ -107,7 +111,32 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 					parent
 						.spawn_bundle(ButtonBundle {
 							style: Style {
-								size: Size::new(Val::Px(300.0), Val::Percent(100.0)),
+								size: Size::new(Val::Px(300.0), Val::Px(50.0)),
+								justify_content: JustifyContent::Center,
+								align_items: AlignItems::Center,
+								..Default::default()
+							},
+							color: Color::RED.into(),
+							..Default::default()
+						})
+						.insert(Name::new("SettingsButton"))
+						.insert(ColoredButton::default())
+						.insert(SettingsButton)
+						.with_children(|parent| {
+							parent.spawn_bundle(TextBundle::from_section(
+								"Settings",
+								TextStyle {
+									font: roboto_font.0.clone(),
+									font_size: 32.0,
+									color: Color::BLACK,
+								},
+							));
+						});
+
+					parent
+						.spawn_bundle(ButtonBundle {
+							style: Style {
+								size: Size::new(Val::Px(300.0), Val::Px(50.0)),
 								justify_content: JustifyContent::Center,
 								align_items: AlignItems::Center,
 								..Default::default()
@@ -140,7 +169,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 						position: UiRect::new(
 							Val::Px(0.0),
 							Val::Px(0.0),
-							Val::Px(200.0),
+							Val::Px(120.0),
 							Val::Px(0.0),
 						),
 						..Default::default()
@@ -185,6 +214,18 @@ fn play_button(
 		#[allow(clippy::collapsible_if)]
 		if *interaction == Interaction::Clicked {
 			if state.set(GameState::Game).is_err() {}
+		}
+	}
+}
+
+fn settings_button(
+	mut interaction_query: Query<&Interaction, (Changed<Interaction>, With<SettingsButton>)>,
+	mut state: ResMut<State<GameState>>,
+) {
+	for interaction in &mut interaction_query {
+		#[allow(clippy::collapsible_if)]
+		if *interaction == Interaction::Clicked {
+			if state.set(GameState::Settings).is_err() {}
 		}
 	}
 }

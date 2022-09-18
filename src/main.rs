@@ -1,10 +1,18 @@
 #![deny(unused_must_use)]
 
-use audio_player::AudioPlayerPlugin;
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::*;
 use bevy_prototype_debug_lines::*;
 use bevy_kira_audio::prelude::*;
+
+// we dont need those things in wasm build since they are for setting window icon
+#[cfg(not(target_arch="wasm32"))]
+use bevy::window::WindowId;
+#[cfg(not(target_arch="wasm32"))]
+use bevy::winit::WinitWindows;
+#[cfg(not(target_arch="wasm32"))]
+use winit::window::Icon;
+
 
 pub const WIDTH: f32 = 1280.0;
 pub const HEIGHT: f32 = 720.0;
@@ -28,7 +36,8 @@ mod enemy_nav_mesh;
 mod audio;
 mod audio_player;
 mod music;
-mod level_timer;
+mod stats;
+mod settings;
 
 use bullet::BulletPlugin;
 use button::ButtonPlugin;
@@ -40,19 +49,49 @@ use music::MusicPlugin;
 use player::PlayerPlugin;
 use debug::DebugPlugin;
 use post_processing::PostProcessingPlugin;
+use settings::SettingsPlugin;
 use tilemap::TileMapPlugin;
 use game_over::GameOverPlugin;
 use audio::AudioLoadPlugin;
 use win::WinPlugin;
-use level_timer::LevelTimerPlugin;
+use stats::StatsPlugin;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Copy)]
 pub enum GameState {
     MainMenu,
+    Settings,
     Game,
     GameOver,
     Win,
+    Stats,
 }
+
+#[cfg(not(target_arch="wasm32"))]
+fn set_window_icon(
+    // we have to use `NonSend` here
+    windows: NonSend<WinitWindows>,
+) {
+    let primary = windows.get_window(WindowId::primary()).unwrap();
+
+    // here we use the `image` crate to load our icon data from a png file
+    // this is not a very bevy-native solution, but it will do
+    let (icon_rgba, icon_width, icon_height) = {
+        let image = image::open("./assets/img/enemy_ded.png")
+            .expect("Failed to open icon path")
+            .into_rgba8();
+        let (width, height) = image.dimensions();
+        let rgba = image.into_raw();
+        (rgba, width, height)
+    };
+
+    let icon = Icon::from_rgba(icon_rgba, icon_width, icon_height).unwrap();
+
+    primary.set_window_icon(Some(icon));
+}
+
+// we cant set window icon on website so we have to do this thing
+#[cfg(target_arch="wasm32")]
+fn set_window_icon(){}
 
 fn main() {
     App::new()
@@ -68,6 +107,10 @@ fn main() {
             ..Default::default()
         })
 
+        // Setting window icon
+        
+        .add_startup_system(set_window_icon)
+
         // Plugins
         .add_plugins(DefaultPlugins)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
@@ -75,7 +118,6 @@ fn main() {
         .add_plugin(MusicPlugin)
         .add_plugin(PostProcessingPlugin)
         .add_plugin(AudioLoadPlugin)
-        .add_plugin(AudioPlayerPlugin)
         .add_plugin(FontPlugin)
         .add_plugin(ButtonPlugin)
         .add_plugin(TileMapPlugin)
@@ -87,7 +129,8 @@ fn main() {
         .add_plugin(WinPlugin)
         .add_plugin(CrosshairPlugin)
         .add_plugin(DebugPlugin)
-        .add_plugin(LevelTimerPlugin)
+        .add_plugin(StatsPlugin)
+        .add_plugin(SettingsPlugin)
         .add_plugin(DebugLinesPlugin::default())
 
         .run();

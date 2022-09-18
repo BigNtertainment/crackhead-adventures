@@ -3,19 +3,22 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use bevy::prelude::*;
-use bevy_kira_audio::{Audio, AudioControl};
+use bevy_kira_audio::Audio;
 use bevy_rapier2d::prelude::*;
 use navmesh::NavVec3;
 use rand::random;
 use rand::seq::SliceRandom;
 
 use crate::audio::{EnemyShotSound, Screams};
+use crate::audio_player::{AudioPlayer, ENEMY_SHOT_VOLUME, ENEMY_DEATH_SCREAM_VOLUME};
 use crate::bullet::{
 	Bullet, BulletBundle, BulletTexture, ShotEvent, BULLET_COLLIDER_HEIGHT, BULLET_COLLIDER_WIDTH,
 };
 use crate::enemy_nav_mesh::EnemyNavMesh;
 use crate::player::Player;
 use crate::post_processing::MainCamera;
+use crate::stats::Stats;
+use crate::settings::Settings;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
 use crate::unit::{Movement, ShootEvent, Shooting};
 use crate::{GameState, TILE_SIZE};
@@ -161,6 +164,7 @@ fn update_enemy_ai(
 	mut shot_event: EventWriter<ShotEvent>,
 	rapier_context: Res<RapierContext>,
 	time: Res<Time>,
+	settings: Res<Settings>,
 	windows: Res<Windows>,
 	nav_mesh: Res<EnemyNavMesh>,
 	audio: Res<Audio>,
@@ -221,7 +225,12 @@ fn update_enemy_ai(
 							&mut shot_event,
 						);
 
-						audio.play(shot_sound.clone()).with_volume(0.1);
+						AudioPlayer::play_sfx(
+							audio.as_ref(),
+							shot_sound.clone(),
+							ENEMY_SHOT_VOLUME,
+							settings.as_ref(),
+						);
 
 						shooting.cooldown.reset();
 					}
@@ -370,26 +379,31 @@ fn update_enemy_texture(
 }
 
 fn get_shot(
-	world: &World,
 	mut commands: Commands,
 	tilemap_query: Query<Entity, With<Tilemap>>,
-	enemy_query: Query<Entity, With<Enemy>>,
+	enemy_query: Query<(Entity, &Transform), With<Enemy>>,
 	mut shot_events: EventReader<ShotEvent>,
 	enemy_textures: Res<EnemyTextures>,
 	audio: Res<Audio>,
+	settings: Res<Settings>,
 	screams: Res<Screams>,
+	mut stats: ResMut<Stats>,
 ) {
 	let tilemap = tilemap_query.single();
-	let mut enemies: Vec<Entity> = enemy_query.iter().collect();
+	let mut enemies: Vec<(Entity, &Transform)> = enemy_query.iter().collect();
 
 	for shot in shot_events.iter() {
-		let enemy = shot.0;
+		let shot_entity = shot.0;
 
-		if !enemies.contains(&enemy) {
-			continue;
-		}
+		let index = enemies.iter().position(|enemy| enemy.0 == shot_entity);
 
-		if let Some(enemy_transform) = world.get::<Transform>(enemy) {
+		if let Some(index) = index {
+			let enemy_tuple = enemies[index];
+			let enemy_transform = enemy_tuple.1;
+			let enemy = enemy_tuple.0;
+
+			stats.enemies_killed += 1;
+
 			// Spawn the enemy body
 			let body = commands
 				.spawn_bundle(EnemyBodyBundle {
@@ -404,14 +418,15 @@ fn get_shot(
 
 			commands.entity(tilemap).push_children(&[body]);
 
-			audio
-				.play(
-					screams
-						.choose(&mut rand::thread_rng())
-						.expect("No scream sounds found.")
-						.clone(),
-				)
-				.with_volume(0.3);
+			AudioPlayer::play_sfx(
+				audio.as_ref(),
+				screams
+					.choose(&mut rand::thread_rng())
+					.expect("No scream sounds found.")
+					.clone(),
+				ENEMY_DEATH_SCREAM_VOLUME,
+				settings.as_ref()
+			);
 
 			// Spawn a few blood splatters
 			let temp: Vec<u32> = (0..4).collect();
@@ -446,7 +461,6 @@ fn get_shot(
 
 			commands.entity(enemy).despawn_recursive();
 
-			let index = enemies.iter().position(|_enemy| *_enemy == enemy).unwrap();
 			enemies.remove(index);
 		}
 	}
