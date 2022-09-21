@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier2d::prelude::{Collider, QueryFilter, RapierContext, Sensor};
 
-use crate::GameState;
+use crate::{GameState, time::TimeCounter};
 
 pub const BULLET_COLLIDER_WIDTH: f32 = 10.0;
 pub const BULLET_COLLIDER_HEIGHT: f32 = 10.0;
@@ -58,7 +58,7 @@ fn load_bullet_texture(mut commands: Commands, asset_server: Res<AssetServer>) {
 fn update_bullets(
 	mut commands: Commands,
 	mut bullets: Query<(Entity, &mut Transform, &Bullet)>,
-	time: Res<Time>,
+	time: Res<TimeCounter>,
 	rapier_context: Res<RapierContext>,
 	mut event_shot: EventWriter<ShotEvent>,
 ) {

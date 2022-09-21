@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy_inspector_egui::prelude::*;
 
+use crate::time::TimeCounter;
+
 #[derive(Default, Reflect, Inspectable, Component)]
 #[reflect(Component)]
 pub struct Movement {
@@ -62,8 +64,8 @@ impl Health {
 }
 
 pub trait Effect {
-	fn apply(&self, movement: &mut Movement, health: &mut Health);
-	fn finish(&self, movement: &mut Movement, health: &mut Health);
+	fn apply(&self, movement: &mut Movement, health: &mut Health, shooting: &mut Shooting, time: &mut TimeCounter);
+	fn finish(&self, movement: &mut Movement, health: &mut Health, shooting: &mut Shooting, time: &mut TimeCounter);
 }
 
 #[derive(Default, Reflect, Inspectable, Component)]
@@ -78,7 +80,7 @@ impl Inventory {
 	pub fn new() -> Self {
 		Self {
 			small_powerups: 1,
-			big_powerups: 0,
+			big_powerups: 1, // For debugging purposes
 		}
 	}
 

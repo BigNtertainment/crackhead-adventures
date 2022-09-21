@@ -10,6 +10,7 @@ use bevy_kira_audio::prelude::*;
 use bevy::window::WindowId;
 #[cfg(not(target_arch="wasm32"))]
 use bevy::winit::WinitWindows;
+use time::TimePlugin;
 #[cfg(not(target_arch="wasm32"))]
 use winit::window::Icon;
 
@@ -23,6 +24,7 @@ mod player;
 mod enemy;
 mod cocaine;
 mod bullet;
+mod time;
 mod debug;
 mod tilemap;
 mod win;
@@ -108,11 +110,11 @@ fn main() {
         })
 
         // Setting window icon
-        
         .add_startup_system(set_window_icon)
 
         // Plugins
         .add_plugins(DefaultPlugins)
+        .add_plugin(TimePlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
         .add_plugin(AudioPlugin)
         .add_plugin(MusicPlugin)

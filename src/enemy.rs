@@ -20,6 +20,7 @@ use crate::post_processing::MainCamera;
 use crate::stats::Stats;
 use crate::settings::Settings;
 use crate::tilemap::{TexturesMemo, Tile, Tilemap};
+use crate::time::TimeCounter;
 use crate::unit::{Movement, ShootEvent, Shooting};
 use crate::{GameState, TILE_SIZE};
 
@@ -163,7 +164,7 @@ fn update_enemy_ai(
 	mut shoot_event: EventWriter<ShootEvent>,
 	mut shot_event: EventWriter<ShotEvent>,
 	rapier_context: Res<RapierContext>,
-	time: Res<Time>,
+	time: Res<TimeCounter>,
 	settings: Res<Settings>,
 	windows: Res<Windows>,
 	nav_mesh: Res<EnemyNavMesh>,
@@ -327,7 +328,7 @@ fn alert_on_shot_sound(
 
 fn update_enemy_position(
 	mut enemies: Query<(&mut Transform, &mut Enemy, &Movement)>,
-	time: Res<Time>,
+	time: Res<TimeCounter>,
 ) {
 	for (mut transform, mut enemy, movement) in enemies.iter_mut() {
 		if let EnemyAiState::Alert {
