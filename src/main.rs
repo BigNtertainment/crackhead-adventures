@@ -89,7 +89,7 @@ fn set_window_icon(
     primary.set_window_icon(Some(icon));
 }
 
-// we cant set window icon on website so we have to do this thing
+// We cant set window icon on website so we have to do this thing
 #[cfg(target_arch="wasm32")]
 fn set_window_icon(){}
 
