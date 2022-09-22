@@ -104,6 +104,28 @@ pub struct BigPowerupMaterial {
 	pub _wasm_padding_1: u32,
 	#[uniform(2)]
 	pub _wasm_padding_2: u32,
+
+	/// the larger the value, the more rounded the screen (must be between 0 and 1)
+	#[uniform(3)]
+	screen_shape_factor: f32,
+
+	/// controls amount of screen rows
+	#[uniform(4)]
+	rows: f32,
+
+	/// screen brightness (I recommend setting it to 3 or 4 if you do not want create a horror game)
+	#[uniform(5)]
+	brightness: f32,
+
+	/// screen edge shadow effect size
+	#[uniform(6)]
+	edges_transition_size: f32,
+
+	/// Each pixel contains 3 sub-pixels (red, green and blue).
+	/// This option allows you to display the color of all channels in any subpixels.
+	/// I really recommend play with it (only use values between 0 and 1)
+	#[uniform(7)]
+	channels_mask_min: f32,
 }
 
 impl Material2d for BigPowerupMaterial {
@@ -120,6 +142,11 @@ impl BigPowerupMaterial {
 			_wasm_padding_0: 0,
 			_wasm_padding_1: 0,
 			_wasm_padding_2: 0,
+			screen_shape_factor: 0.2,
+			rows: 256.0,
+			brightness: 3.0,
+			edges_transition_size: 0.2,
+			channels_mask_min: 0.025,
 		}
 	}
 }

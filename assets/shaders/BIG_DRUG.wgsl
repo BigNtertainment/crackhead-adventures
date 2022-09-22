@@ -16,56 +16,65 @@ struct Time {
 @group(1) @binding(2)
 var<uniform> time: Time;
 
-fn adjust_hue(color: vec4<f32>, hueAdjust: f32) -> vec4<f32> {
-    let kRGBToYPrime: vec4<f32> = vec4<f32>(0.299, 0.587, 0.114, 0.0);
-    let kRGBToI: vec4<f32> = vec4<f32>(0.596, -0.275, -0.321, 0.0);
-    let kRGBToQ: vec4<f32> = vec4<f32>(0.212, -0.523, 0.311, 0.0);
+@group(1) @binding(3)
+var<uniform> screen_shape_factor: f32;
 
-    let kYIQToR: vec4<f32> = vec4<f32>(1.0, 0.956, 0.621, 0.0);
-    let kYIQToG: vec4<f32> = vec4<f32>(1.0, -0.272, -0.647, 0.0);
-    let kYIQToB: vec4<f32> = vec4<f32>(1.0, -1.107, 1.704, 0.0);
+@group(1) @binding(4)
+var<uniform> rows: f32;
 
-    // convert to YIQ
-    let YPrime: f32 = dot(color, kRGBToYPrime);
-    let I: f32 = dot(color, kRGBToI);
-    let Q: f32 = dot(color, kRGBToQ);
+@group(1) @binding(5)
+var<uniform> brightness: f32;
 
-    // calculate the heu and chroma
-    let hue: f32 = atan2(Q, I);
-    let chroma: f32 = sqrt(I * I + Q * Q);
+@group(1) @binding(6)
+var<uniform> edges_transition_size: f32;
 
-    let hue = hue + hueAdjust;
+@group(1) @binding(7)
+var<uniform> channels_mask_min: f32;
 
-    let Q = chroma * sin(hue);
-    let I = chroma * cos(hue);
-
-    let yIQ: vec4<f32> = vec4<f32>(YPrime, I, Q, 0.0);
-
-    // color.r = dot(yIQ, kYIQToR);
-    // color.g = dot(yIQ, kYIQToG);
-    // color.b = dot(yIQ, kYIQToB);
-
-    return vec4<f32>(dot(yIQ, kYIQToR), dot(yIQ, kYIQToG), dot(yIQ, kYIQToB), color.a);
-} 
-
-fn random (st: vec2<f32>) -> f32 {
-    return fract(sin(dot(st.xy, vec2(13.23142, 53.41223))) * 4234234.35234);
+fn get_uv(pos: vec2<f32>) -> vec2<f32> {
+    return pos / vec2(view.width, view.height);
 }
 
-fn noise (st: vec2<f32>) -> f32 {
-    let i: vec2<f32> = floor(st);
-    let f:vec2<f32> = fract(st);
+fn apply_screen_shape(uv: vec2<f32>, factor: f32) -> vec2<f32> {
+    let uv = uv - vec2(0.5, 0.5);
+    let uv = uv * (uv.yx * uv.yx * factor + 1.0);
+    return uv + vec2(0.5, 0.5);
+}
 
-    let a: f32 = random(i);
-    let b: f32 = random(i + vec2<f32>(1.0, 0.0));
-    let c: f32 = random(i + vec2<f32>(0.0, 1.0));
-    let d: f32 = random(i + vec2<f32>(1.0, 1.0));
+fn pixelate(uv: vec2<f32>, size: vec2<f32>) -> vec2<f32> {
+    return floor(uv * size) / size;
+}
 
-    let u: vec2<f32> = f*f*(3.0 - 2.0*f);
+fn get_texture_color(uv: vec2<f32>) -> vec4<f32> {
+    return textureSample(texture, our_sampler, uv);
+}
 
-    return mix(a, b, u.x) +
-        (c - a)* u.y * (1.0 - u.x) +
-        (d - b) * u.x * u.y;
+fn apply_pixel_rows(color: vec4<f32>, uv: vec2<f32>, rows: f32) -> vec4<f32> {
+    return color;
+}
+
+fn apply_pixel_cols(color: vec4<f32>, uv: vec2<f32>, cols: f32) -> vec4<f32> {
+    return color;
+}
+
+fn apply_screen_edges(color: vec4<f32>, uv: vec2<f32>) -> vec4<f32> {
+    let ratio = view.width / view.height;
+
+    let edge_x = min(uv.x / edges_transition_size, (1.0 - uv.x) / edges_transition_size);
+    let edge_y = min(uv.y / edges_transition_size / ratio, (1.0 - uv.y) / edges_transition_size / ratio);
+
+    let edge = vec2(
+        max(edge_x, 0.0),
+        max(edge_y, 0.0),
+    );
+    let f = min(edge.x, edge.y);
+    let f = min(f, 1.0);
+
+    return vec4(color.xyz * f, 1.0);
+} 
+
+fn apply_brightness(color: vec4<f32>) -> vec4<f32> {
+    return color * vec4(vec3(brightness), 1.0);
 }
 
 @fragment
@@ -73,21 +82,21 @@ fn fragment(
     @builtin(position) position: vec4<f32>,
     #import bevy_sprite::mesh2d_vertex_output
 ) -> @location(0) vec4<f32> {
-    let time = f32(time.time);
-    // Get screen position with coordinates from 0 to 1
-    let uv = (position.xy / vec2<f32>(view.width, view.height));
-    let offset_strength = 0.002;
-    let time_offset = sin(time / 100.0) / 100.0  * noise(uv * 10.0 + time / 1000.0);
+    let uv = get_uv(position.xy);
+    let uv = apply_screen_shape(uv, screen_shape_factor);
 
-    // Sample each color channel with an arbitrary shift
-    var output_color1 = vec4<f32>(
-        textureSample(texture, our_sampler, uv + vec2<f32>(offset_strength, -offset_strength)).r,
-        textureSample(texture, our_sampler, uv + vec2<f32>(-offset_strength + time_offset, 0.0)).g,
-        textureSample(texture, our_sampler, uv + vec2<f32>(0.0, offset_strength + time_offset)).b,
-        1.0
-        );
+    let cols = rows * view.width / view.height;
 
-    var output_color: vec4<f32> = adjust_hue(output_color1, 90.0);
+    let texture_uv = uv;
+    let texture_uv = pixelate(texture_uv, vec2(cols, rows));
 
-    return output_color;
+    let color = get_texture_color(texture_uv);
+
+    let color = apply_pixel_rows(color, uv, rows);
+    let color = apply_pixel_cols(color, uv, cols);
+
+    let color = apply_brightness(color);
+    let color = apply_screen_edges(color, uv);
+
+    return color;
 }
