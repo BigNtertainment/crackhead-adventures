@@ -408,7 +408,7 @@ fn get_shot(
 			let body = commands
 				.spawn_bundle(EnemyBodyBundle {
 					sprite_bundle: SpriteBundle {
-						transform: Transform::from_translation(enemy_transform.translation)
+						transform: Transform::from_translation(enemy_transform.translation - Vec3::new(0.0, 0.0, random::<f32>() % 10.0 + 10.0))
 							.with_rotation(Quat::from_rotation_z(rand::random::<f32>() * 2.0 * PI)),
 						texture: enemy_textures.body.clone(),
 						..Default::default()

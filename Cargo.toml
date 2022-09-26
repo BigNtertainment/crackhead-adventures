@@ -45,7 +45,7 @@ features = [
 ]
 
 [dependencies]
-bevy-inspector-egui = "0.12.1"
+bevy-inspector-egui = "0.13.0"
 bevy_rapier2d = "0.16.1"
 bevy_prototype_debug_lines = "0.8"
 navmesh = { git = "https://github.com/Pietrek14/navmesh", features = ["web"] }
