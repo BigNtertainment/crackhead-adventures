@@ -335,12 +335,23 @@ fn update_enemy_position(
 			current,
 		} = &mut enemy.ai_state
 		{
-			let mut target = path[*current];
+			let target = path[*current];
 
-			let mut movement_vector =
+			let difference_vector =
 				Vec2::new(target.x, target.y) - transform.translation.truncate();
 
-			while movement_vector.length() <= 5.0 {
+			let direction = difference_vector.normalize_or_zero();
+
+			let movement_vector = direction * TILE_SIZE * movement.speed * time.delta_seconds();
+
+			let movement_vector = if difference_vector.length() > movement_vector.length() {
+				movement_vector
+			} else {
+				difference_vector
+			};
+
+			// If the enemy reached the waypoint
+			if movement_vector.length() <= 1.0 {
 				*current += 1;
 
 				if *current == path.len() {
@@ -348,15 +359,10 @@ fn update_enemy_position(
 					break;
 				}
 
-				target = path[*current];
-
-				movement_vector = Vec2::new(target.x, target.y) - transform.translation.truncate();
+				continue;
 			}
 
-			let direction = movement_vector.normalize_or_zero();
-
-			transform.translation +=
-				(direction * TILE_SIZE * movement.speed * time.delta_seconds()).extend(0.0);
+			transform.translation += movement_vector.extend(0.0);
 			transform.rotation = Quat::from_rotation_z(Vec2::Y.angle_between(direction));
 		}
 	}
