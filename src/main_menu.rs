@@ -66,7 +66,10 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 			parent
 				.spawn_bundle(NodeBundle {
 					style: Style {
+						#[cfg(not(target_arch="wasm32"))]
 						size: Size::new(Val::Percent(50.0), Val::Px(200.0)),
+						#[cfg(target_arch="wasm32")]
+						size: Size::new(Val::Percent(50.0), Val::Px(135.0)),
 						justify_content: JustifyContent::SpaceBetween,
 						flex_direction: FlexDirection::ColumnReverse,
 						align_items: AlignItems::Center,
@@ -132,7 +135,7 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 								},
 							));
 						});
-
+					#[cfg(not(target_arch="wasm32"))]
 					parent
 						.spawn_bundle(ButtonBundle {
 							style: Style {
@@ -166,10 +169,19 @@ fn load_ui(mut commands: Commands, paint_font: Res<PaintFont>, roboto_font: Res<
 						justify_content: JustifyContent::FlexEnd,
 						align_items: AlignItems::FlexStart,
 						align_self: AlignSelf::FlexEnd,
+						// this needs a fix quick
+						#[cfg(not(target_arch="wasm32"))]
 						position: UiRect::new(
 							Val::Px(0.0),
 							Val::Px(0.0),
 							Val::Px(120.0),
+							Val::Px(0.0),
+						),
+						#[cfg(target_arch="wasm32")]
+						position: UiRect::new(
+							Val::Px(0.0),
+							Val::Px(0.0),
+							Val::Px(160.0),
 							Val::Px(0.0),
 						),
 						..Default::default()
