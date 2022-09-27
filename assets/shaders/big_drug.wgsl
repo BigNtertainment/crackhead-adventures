@@ -162,7 +162,7 @@ fn fragment(
 
     let hue = 6.2839
         * cool_sine(uv.x + 100.0, (-time)*0.0005)
-        * cool_sine(uv.y, (time)*0.000416);
+        * cool_sine(uv.y, (time)*0.000316);
 
     let color = adjust_hue(color, hue*2.);
 
