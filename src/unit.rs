@@ -80,7 +80,7 @@ impl Inventory {
 	pub fn new() -> Self {
 		Self {
 			small_powerups: 1,
-			big_powerups: 1, // For debugging purposes
+			big_powerups: 0,
 		}
 	}
 
