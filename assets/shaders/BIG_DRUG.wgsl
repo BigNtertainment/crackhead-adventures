@@ -160,9 +160,9 @@ fn fragment(
     let color = apply_brightness(color);
     let color = apply_screen_edges(color, uv);
 
-    let hue = 6.2839 * noise(uv + vec2<f32>(time / 2200.0)) 
-        * cool_sine(uv.x + random(vec2<f32>(12.,12.1212)), (-time)/2000.0)
-        * cool_sine(uv.y + random(vec2<f32>(65456.,1546456.)), (time)/2400.0);
+    let hue = 6.2839
+        * cool_sine(uv.x + 100.0, (-time)*0.0005)
+        * cool_sine(uv.y, (time)*0.000416);
 
     let color = adjust_hue(color, hue*2.);
 
