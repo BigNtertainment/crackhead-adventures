@@ -87,7 +87,7 @@ fn fragment(
         1.0
         );
 
-    var output_color: vec4<f32> = adjust_hue(output_color1, 90.0);
+    var output_color: vec4<f32> = adjust_hue(output_color1, 123.0);
 
     return output_color;
 }

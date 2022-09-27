@@ -24,6 +24,7 @@ use crate::post_processing::{
 use crate::settings::Settings;
 use crate::stats::Stats;
 use crate::tilemap::{Tile, Tilemap};
+use crate::time::TimeCounter;
 use crate::unit::{Health, Inventory, Movement, ShootEvent, Shooting};
 use crate::win::Win;
 use crate::HEIGHT;
@@ -43,7 +44,7 @@ use self::post_processing::{
 
 pub const WEAPON_COOLDOWN: f32 = 0.5;
 pub const SMALL_POWERUP_DURATION: f32 = 5.0;
-pub const BIG_POWERUP_DURATION: f32 = 5.0;
+pub const BIG_POWERUP_DURATION: f32 = 5.0 / 3.0;
 
 #[derive(Component)]
 pub struct Player;
@@ -164,7 +165,7 @@ fn player_movement(
 	mut player_query: Query<(Entity, &Movement, &mut Transform, &Collider), With<Player>>,
 	enemy_query: Query<Entity, (With<Enemy>, Without<Player>)>,
 	keyboard: Res<Input<KeyCode>>,
-	time: Res<Time>,
+	time: Res<TimeCounter>,
 	settings: Res<Settings>,
 	audio: Res<Audio>,
 	rapier_context: Res<RapierContext>,
@@ -305,7 +306,7 @@ fn player_shoot(
 	world_query: Query<Entity, With<Tilemap>>,
 	mut event_shot: EventWriter<ShootEvent>,
 	buttons: Res<Input<MouseButton>>,
-	time: Res<Time>,
+	time: Res<TimeCounter>,
 	_rapier_context: Res<RapierContext>,
 	settings: Res<Settings>,
 	audio: Res<Audio>,
@@ -377,11 +378,11 @@ struct ActiveMaterial(Option<PowerupMaterial>);
 fn use_powerup(
 	mut commands: Commands,
 	mut player_query: Query<
-		(&mut Inventory, &mut Movement, &mut Health, &mut EffectData),
+		(&mut Inventory, &mut Movement, &mut Health, &mut Shooting, &mut EffectData),
 		With<Player>,
 	>,
 	keyboard: Res<Input<KeyCode>>,
-	time: Res<Time>,
+	mut time: ResMut<TimeCounter>,
 	settings: Res<Settings>,
 	audio: Res<Audio>,
 	snorting_sounds: Res<SnortingSounds>,
@@ -395,13 +396,13 @@ fn use_powerup(
 	mut meshes: ResMut<Assets<Mesh>>,
 	mut stats: ResMut<Stats>,
 ) {
-	let (mut inventory, mut movement, mut health, mut effect_data) = player_query.single_mut();
+	let (mut inventory, mut movement, mut health, mut shooting, mut effect_data) = player_query.single_mut();
 
 	effect_data.duration.tick(time.delta());
 
 	if effect_data.duration.just_finished() {
 		// Remove the effects
-		effect_data.finish(movement.as_mut(), health.as_mut());
+		effect_data.finish(movement.as_mut(), health.as_mut(), shooting.as_mut(), time.as_mut());
 		clean_post_processing(
 			&mut commands,
 			&screen.0,
@@ -425,6 +426,8 @@ fn use_powerup(
 			Some(Box::new(SmallPowerup)),
 			movement.as_mut(),
 			health.as_mut(),
+			shooting.as_mut(),
+			time.as_mut(),
 			SMALL_POWERUP_DURATION,
 		);
 
@@ -460,6 +463,8 @@ fn use_powerup(
 			Some(Box::new(BigPowerup)),
 			movement.as_mut(),
 			health.as_mut(),
+			shooting.as_mut(),
+			time.as_mut(),
 			BIG_POWERUP_DURATION,
 		);
 
@@ -493,7 +498,7 @@ fn update_powerup_material(
 	mut active_effect: ResMut<ActiveMaterial>,
 	mut small_powerup_materials: ResMut<Assets<SmallPowerupMaterial>>,
 	mut big_powerup_materials: ResMut<Assets<BigPowerupMaterial>>,
-	time: Res<Time>,
+	time: Res<TimeCounter>,
 ) {
 	match &mut active_effect.0 {
 		Some(powerup) => match powerup {

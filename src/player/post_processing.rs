@@ -55,7 +55,7 @@ pub fn clean_post_processing(
 }
 
 #[derive(AsBindGroup, TypeUuid, Clone)]
-#[uuid = "2cf6b1b2-23f2-11ed-861d-0242ac120002"]
+#[uuid = "18f452b0-0efc-497e-96fb-48af7b45731c"]
 pub struct SmallPowerupMaterial {
 	/// In this example, this image will be the result of the main camera.
 	#[texture(0)]
@@ -73,7 +73,7 @@ pub struct SmallPowerupMaterial {
 
 impl Material2d for SmallPowerupMaterial {
 	fn fragment_shader() -> ShaderRef {
-		"shaders/SMALL_DRUG.wgsl".into()
+		"shaders/small_drug.wgsl".into()
 	}
 }
 
@@ -108,7 +108,7 @@ pub struct BigPowerupMaterial {
 
 impl Material2d for BigPowerupMaterial {
 	fn fragment_shader() -> ShaderRef {
-		"shaders/BIG_DRUG.wgsl".into()
+		"shaders/big_drug.wgsl".into()
 	}
 }
 
